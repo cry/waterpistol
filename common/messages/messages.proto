@@ -2,13 +2,12 @@ syntax = "proto3";
 
 package messages;
 
-service Implant {
+service Malware {
     rpc Exec (ExecRequest) returns (ExecReply) {}
 }
 
 message ExecRequest {
     string cmd = 1;
-    repeated string args = 2;
 }
 
 message ExecReply {

