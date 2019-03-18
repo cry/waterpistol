@@ -3,7 +3,7 @@ package sh
 import (
 	"fmt"
 	"malware/common"
-	"malware/types"
+	"malware/common/types"
 	"os/exec"
 )
 
@@ -13,7 +13,7 @@ type runCommand struct {
 	args    []string
 }
 
-// RunCommand generates a RunCommand Message to our of
+// RunCommand generates a `runCommand` event message
 func RunCommand(args []string) types.Event {
 	return runCommand{args[0], args[1:]}
 }
@@ -24,7 +24,7 @@ type state struct {
 }
 
 type settings struct {
-	//shell string // Could be another struct referencing a connection_type, encryption methods, etc
+	// Could be another struct referencing a connection_type, encryption methods, etc
 	state *state // Tell our loop to stop
 }
 
@@ -34,7 +34,7 @@ func Create() types.Module {
 	return settings{&state}
 }
 
-func runEvents(settings settings) {
+func (settings settings) runEvents() {
 	for settings.state.running {
 		message := <-settings.state.eventChannel
 
@@ -53,13 +53,16 @@ func runEvents(settings settings) {
 		// DEBUG
 		settings.state.eventChannel <- ""
 	}
+
 }
 
-func (settings settings) Init() chan types.Event { // Init the state of this module
+// Init the state of this module
+func (settings settings) Init() chan types.Event {
 	settings.state.running = true
 	settings.state.eventChannel = make(chan types.Event)
 
-	go runEvents(settings)
+	go settings.runEvents()
+
 	return settings.state.eventChannel
 }
 
