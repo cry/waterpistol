@@ -1,6 +1,8 @@
 package common
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Panicf prints out the message before pannicing with err
 func Panicf(err error, format string, a ...interface{}) {

