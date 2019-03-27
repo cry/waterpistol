@@ -7,20 +7,12 @@ import (
 	"os/exec"
 )
 
-// Message to be sent by
-type runCommand struct {
-	command string
-	args    []string
-}
-
-// RunCommand generates a `runCommand` event message
-func RunCommand(args []string) types.Event {
-	return runCommand{args[0], args[1:]}
-}
+const CAPABILITY = "exec"
 
 type state struct {
-	running      bool
-	eventChannel chan types.Event
+	running   bool
+	rxChannel chan types.Message
+	txChannel chan types.Message
 }
 
 type settings struct {
@@ -28,42 +20,45 @@ type settings struct {
 	state *state // Tell our loop to stop
 }
 
+func (settings settings) Capability() string {
+	return CAPABILITY
+}
+
 // Create creates an implementation of settings
 func Create() types.Module {
-	state := state{running: false, eventChannel: nil}
+	state := state{running: false, rxChannel: nil, txChannel: nil}
 	return settings{&state}
 }
 
 func (settings settings) runEvents() {
 	for settings.state.running {
-		message := <-settings.state.eventChannel
+		message := <-settings.state.rxChannel
 
-		switch cmd := message.(type) {
-		case runCommand:
-			out, err := exec.Command(cmd.command, cmd.args...).Output()
+		switch message.Capability {
+		case CAPABILITY:
+			out, err := exec.Command(message.Args[0], message.Args[1:]...).Output()
 			if err != nil {
 				common.Panicf(err, "Error on running command: %s", message)
 			}
-
-			fmt.Println(string(out))
+			settings.state.txChannel <-type.Message{Capability: "network", Caller: settings.state.rxChannel, Args: [out]}
+			fmt.Println(out)
 		default:
 			common.Panicf(nil, "Didn't receive RunCommand type, %s is type %T", message, message)
 		}
 
-		// DEBUG
-		settings.state.eventChannel <- ""
 	}
 
 }
 
 // Init the state of this module
-func (settings settings) Init() chan types.Event {
+func (settings settings) Init() types.Rx_Tx {
 	settings.state.running = true
-	settings.state.eventChannel = make(chan types.Event)
+	settings.state.rxChannel = make(chan types.Message)
+	settings.state.txChannel = make(chan types.Message)
 
 	go settings.runEvents()
 
-	return settings.state.eventChannel
+	return types.Rx_Tx{Rx: settings.state.rxChannel, Tx: settings.state.txChannel}
 }
 
 func (settings settings) Shutdown() {

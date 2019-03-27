@@ -12,15 +12,22 @@ import (
 	"google.golang.org/grpc"
 )
 
+const CAPABILITY = "network"
+
 type state struct {
-	running      bool
-	eventChannel chan types.Event
-	grpc         *grpc.Server
+	running   bool
+	rxChannel chan types.Message
+	txChannel chan types.Message
+	grpc      *grpc.Server
 }
 
 type settings struct {
 	state *state
 	host  string
+}
+
+func (settings settings) Capability() string {
+	return CAPABILITY
 }
 
 func (settings settings) doConnection(conn *grpc.ClientConn) {
@@ -36,7 +43,7 @@ func (settings settings) doConnection(conn *grpc.ClientConn) {
 	}
 
 	switch u := reply.Message.(type) {
-	case *pb.CheckCmdReply_Heartbeat:
+	case *pb.CheckCmdReply_Heartbeat: // No commands to do rip
 		fmt.Println("Heartbeat", u.Heartbeat)
 	case *pb.CheckCmdReply_Exec:
 		fmt.Println("Exec reply", u.Exec)
@@ -65,43 +72,36 @@ func (settings settings) listenServer() {
 
 func (settings settings) runEvents() {
 	for settings.state.running {
-		message := <-settings.state.eventChannel
+		message := <-settings.state.rxChannel
 
-		switch message.(type) {
-		// case sendText:
-		// 	// TODO: Some serialization of somethn
-		// 	fmt.Fprintf(settings.state.conn, cmd.text)
-		// 	if status, err := bufio.NewReader(settings.state.conn).ReadString('\x00'); err == nil {
-		// 		fmt.Println(status)
-		// 	}
+		switch message.Capability {
+		case CAPABILITY:
 
-		// 	fmt.Println(cmd)
 		default:
-			common.Panicf(nil, "Didn't receive SendText type, %s is type %T", message, message)
+			common.Panicf(nil, "Didn't receive CAPABILITY type, %v", message)
 		}
 
-		// DEBUG
-		settings.state.eventChannel <- ""
 	}
 }
 
 func Create() types.Module {
 	port := int16(2000)
 	ip := "127.0.0.1"
-	state := state{eventChannel: nil}
+	state := state{rxChannel: nil, txChannel: nil}
 	host := fmt.Sprintf("%s:%d", ip, port)
 
 	return settings{&state, host}
 }
 
-func (settings settings) Init() chan types.Event {
-	settings.state.eventChannel = make(chan types.Event, 1)
+func (settings settings) Init() types.Rx_Tx {
+	settings.state.rxChannel = make(chan types.Message, 1)
+	settings.state.txChannel = make(chan types.Message, 1)
 	settings.state.running = true
 
 	go settings.listenServer()
 	go settings.runEvents()
 
-	return settings.state.eventChannel
+	return types.Rx_Tx{Rx: settings.state.rxChannel, Tx: settings.state.txChannel}
 }
 
 func (settings settings) Shutdown() {

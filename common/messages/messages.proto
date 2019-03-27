@@ -6,8 +6,8 @@ service Malware {
     rpc CheckCommandQueue (CheckCmdRequest) returns (CheckCmdReply) {}    
 }
 
-message ExecRequest {
-    string cmd = 1;
+message ImplantReply {
+    string module = 1;
     repeated string args = 2;
 }
 
@@ -15,27 +15,24 @@ message ExecReply {
     string reply = 1;
 }
 
-message FileRequest {
-    string filename = 1;
-}
-
 message FileReply {
     string file = 1;
 }
 
-
+// Implant -> C2
 message CheckCmdRequest {
+    oneof message {
+        int64 heartbeat = 1;
+        ImplantReply reply = 2;
+
+    }
+}
+
+// C2 -> Implant
+message CheckCmdReply {
     oneof message {
         int64 heartbeat = 1;
         ExecReply exec = 2;
         FileReply file = 3;
-    }
-}
-
-message CheckCmdReply {
-    oneof message {
-        int64 heartbeat = 1;
-        ExecRequest exec = 2;
-        FileRequest file = 3;
     }
 }

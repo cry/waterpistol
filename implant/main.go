@@ -10,19 +10,20 @@ import (
 )
 
 // List of modules
-var modules = map[types.Module]chan types.Event{
-	sh.Create():                nil,
-	basic_tcp_network.Create(): nil,
+var modules = map[types.Module]types.Rx_Tx{
+	sh.Create():                types.Rx_Tx{},
+	basic_tcp_network.Create(): types.Rx_Tx{},
 }
 
-var capabilities = map[string](func([]string) types.Event){
-	"exec": sh.RunCommand,
-	// "send_string": basic_tcp_network.SendText,
+func find_capability(capability string) types.Rx_Tx {
+	for module, rx_tx := range modules {
+		if module.Capability() == capability {
+			return rx_tx
+		}
+	}
+	common.Panic("NO capability found", capability)
+	return types.Rx_Tx{}
 }
-
-/* Template file will probably contain something along the lines of
- * var modules = map[types.Module](chan types.Event){%loaded_modules%}
- */
 
 func event_loop() {
 	for module := range modules {
@@ -42,9 +43,10 @@ func event_loop() {
 		_, value, ok := reflect.Select(cases)
 		if !ok {
 			// The chosen channel has been closed, channels shouldnt be closing so panic
-			common.Panic("Channel closed", value)
+			common.Panic("Channel closed")
 		}
-		fmt.Printf("Read from channel and received %s\n", value.String())
+
+		message := types.Message{Cvalue.Capabilityapability: value.Capability, Caller: }
 	}
 }
 
