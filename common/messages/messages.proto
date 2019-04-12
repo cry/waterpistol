@@ -8,13 +8,34 @@ service Malware {
 
 message ImplantReply {
     string module = 1;
-    bytes args = 2;
+    bytes args = 2; // Optional
+    PortScanReply portscan = 3; // Optional 
+}
+
+message PortScanReply {
+    enum Status {
+        IN_PROGRESS = 0;
+        ERROR = 1;
+        COMPLETE = 2;
+    }
+
+    Status status = 1;
+    int32 found = 2;
 }
 
 message Exec {
     string Exec = 1;
     repeated string Args = 2;
 }
+
+message PortScan {
+    string ip = 1;
+    int32 startPort = 2;
+    int32 endPort = 3;
+    bool cancel = 4; // True if should cancel current running scan
+}
+
+
 
 message GetFile {
     string filename = 1;
@@ -30,7 +51,6 @@ message CheckCmdRequest {
     oneof message {
         int64 heartbeat = 1;
         ImplantReply reply = 2;
-
     }
 }
 
@@ -41,5 +61,6 @@ message CheckCmdReply {
         Exec exec = 2;
         GetFile getfile = 3;
         UploadFile uploadfile = 4; 
+        PortScan portscan = 5;
     }
 }

