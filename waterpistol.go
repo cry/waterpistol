@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -208,8 +209,40 @@ func (waterpistol *waterpistol) compile_c2_implant() {
 
 }
 
+func checkProgram() {
+	// Ensure GO is installed and GOPATH is set
+	cmd := exec.Command("go", "version")
+	if cmd.Run() != nil {
+		fmt.Println("Please make sure Go compiler is installed")
+		os.Exit(1)
+	}
+	if len(os.Getenv("GOPATH")) == 0 {
+		fmt.Println("Please make sure ENV GOPATH is set")
+		os.Exit(1)
+	}
+
+	// Check we are in the go directory
+	if ex, err := os.Executable(); err != nil && strings.Contains(path.Dir(ex), os.Getenv("GOPATH")) {
+		fmt.Println("Please run this binary in the root directory of the waterpistol")
+		os.Exit(1)
+	}
+
+	// Check that implant/common/c2 exist
+	cmd = exec.Command("ls")
+	out, _ := cmd.CombinedOutput()
+	outp := string(out)
+	if !strings.Contains(outp, "common") ||
+		!strings.Contains(outp, "c2") ||
+		!strings.Contains(outp, "implant") {
+		fmt.Println("Please run this binary in the root directory of the waterpistol")
+		os.Exit(1)
+	}
+}
+
 func main() {
+	checkProgram()
 	rand.Seed(time.Now().UTC().UnixNano())
+
 	waterpistol := &waterpistol{modules: []string{"sh", "portscan"}}
 	waterpistol.compile_c2_implant()
 }
