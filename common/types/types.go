@@ -7,12 +7,18 @@ import "malware/common/messages"
 type Module interface {
 	ID() string
 	Init()
-	HandleMessage(*messages.CheckCmdReply, func(*messages.ImplantReply))
+	HandleMessage(*messages.CheckCmdReply, func(*messages.ImplantReply)) bool
 	Shutdown()
 }
 
-type Error int
-
 const (
-	ERR_FILE_NOT_FOUND Error = 0
+	ERR_FILE_NOT_FOUND   int32 = 1
+	ERR_MODULE_NOT_IMPL  int32 = 2
+	ERR_PORTSCAN_RUNNING int32 = 3
 )
+
+var ErrorToString = map[int32]string{
+	ERR_FILE_NOT_FOUND:   "File not found on implant",
+	ERR_MODULE_NOT_IMPL:  "Module is not implemented on implant",
+	ERR_PORTSCAN_RUNNING: "A portscan is already running on this implant",
+}

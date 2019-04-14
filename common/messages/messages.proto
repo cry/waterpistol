@@ -10,6 +10,7 @@ message ImplantReply {
     string module = 1;
     bytes args = 2; // Optional
     PortScanReply portscan = 3; // Optional 
+    int32 error = 4; // Optional 
 }
 
 message PortScanReply {
