@@ -32,11 +32,9 @@ func (settings settings) doConnection() {
 	defer cancel()
 
 	heartbeat := &pb.CheckCmdRequest_Heartbeat{Heartbeat: time.Now().Unix()}
-	fmt.Println("Sending heartbeat")
 	reply, err := client.CheckCommandQueue(ctx, &pb.CheckCmdRequest{Message: heartbeat})
 
 	if err != nil {
-		fmt.Println("Sending heartbeat help broken", err)
 		return
 	}
 
@@ -55,7 +53,7 @@ func (settings settings) doConnection() {
 	}
 
 	for _, module := range included_modules.Modules {
-		handled = handled && module.HandleMessage(reply, callback)
+		handled = handled || module.HandleMessage(reply, callback)
 	}
 
 	if !handled {

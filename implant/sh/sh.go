@@ -42,9 +42,9 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 	fmt.Println(err)
 	if err != nil {
 		callback(&messages.ImplantReply{Module: settings.ID(), Args: []byte(err.Error())})
+	} else {
+		callback(&messages.ImplantReply{Module: settings.ID(), Args: out})
 	}
-
-	callback(&messages.ImplantReply{Module: settings.ID(), Args: out})
 	return true
 }
 

