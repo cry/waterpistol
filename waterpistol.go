@@ -78,8 +78,10 @@ func (waterpistol *waterpistol) generateCerts() error {
 	args := strings.Split(cert_cmd, " ")
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdin = strings.NewReader("\n\n\n\n\n\n\n")
-
-	return cmd.Run()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Println(string(out))
+	}
+	return err
 }
 
 func (waterpistol *waterpistol) compile(program string) (string, error) {
