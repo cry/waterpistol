@@ -81,9 +81,13 @@ func filterInput(r rune) (rune, bool) {
 	return r, true
 }
 
+func valid_check(string) []string {
+	return valid_modules
+}
+
 var completer = readline.NewPrefixCompleter(
 	readline.PcItem("compile"),
-	readline.PcItem("enable"),
+	readline.PcItem("enable", readline.PcItemDynamic(valid_check)),
 	readline.PcItem("disable"),
 	readline.PcItem("exit"),
 	readline.PcItem("ssh"),
@@ -111,6 +115,19 @@ func (waterpistol *waterpistol) setup_terminal() {
 }
 
 func (waterpistol *waterpistol) enable(module string) {
+	valid := false
+	for _, s := range valid_modules {
+		if strings.Compare(s, module) == 0 {
+			valid = true
+			break
+		}
+	}
+
+	if !valid {
+		fmt.Println("Please select a valid module", valid_modules)
+		return
+	}
+
 	waterpistol.modules = append(waterpistol.modules, module)
 }
 
@@ -130,8 +147,16 @@ func (waterpistol *waterpistol) handle(line string) {
 	parts := strings.Split(strings.TrimSpace(line), " ")
 	switch parts[0] {
 	case "compile":
+		if len(waterpistol.modules) == 0 {
+			waterpistol.writeString("Maybe `enable` a few modules\n")
+			return
+		}
 		waterpistol.compile_c2_implant()
 	case "ssh":
+		if len(waterpistol.ip) == 0 {
+			waterpistol.writeString("Maybe `compile` first\n")
+			return
+		}
 		waterpistol.ssh()
 	case "enable":
 		if len(parts) != 2 {
