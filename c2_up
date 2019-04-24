@@ -9,7 +9,7 @@ fi
 
 export C2_AMI="${C2_AMI:-ami-09b42976632b27e9b}"
 export C2_KEYPAIR_NAME="${C2_KEYPAIR_NAME:-$(whoami)@$(hostname -s)}"
-export C2_KEYPAIR_PRIV_PATH="${HOME}/.ssh/id_c2"
+export C2_KEYPAIR_PRIV_PATH="./id_c2"
 
 if [[ ! -f "${C2_KEYPAIR_PRIV_PATH}" ]]; then
     echo "Missing c2 ssh keypair, generating." >&2
