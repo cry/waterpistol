@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	smallrand "math/rand"
 	"os"
 	"time"
 )
@@ -23,6 +24,16 @@ func pemBlockForKey(priv *ecdsa.PrivateKey) *pem.Block {
 	return &pem.Block{Type: "EC PRIVATE KEY", Bytes: b}
 }
 
+var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randSeq(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[smallrand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
 func GenCerts(file string) {
 	priv, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
 
@@ -31,7 +42,6 @@ func GenCerts(file string) {
 	}
 
 	notAfter := time.Now().Add(365 * 24 * time.Hour)
-
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
@@ -41,7 +51,7 @@ func GenCerts(file string) {
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			Organization: []string{"."},
+			Organization: []string{randSeq(smallrand.Intn(20))},
 		},
 		NotBefore: time.Now(),
 		NotAfter:  notAfter,
@@ -49,7 +59,7 @@ func GenCerts(file string) {
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
-		IsCA: true,
+		IsCA:                  true,
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)

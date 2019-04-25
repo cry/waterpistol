@@ -10,18 +10,29 @@ message ImplantReply {
     string module = 1;
     bytes args = 2; // Optional
     PortScanReply portscan = 3; // Optional 
-    int32 error = 4; // Optional 
+    IPScanReply ipscan = 4; // Optional 
+    int32 error = 5; // Optional 
 }
 
 message PortScanReply {
     enum Status {
         IN_PROGRESS = 0;
-        ERROR = 1;
-        COMPLETE = 2;
+        COMPLETE = 1;
     }
 
     Status status = 1;
     int32 found = 2;
+}
+message IPScanReply {
+    enum Status {
+        IN_PROGRESS = 0;
+        COMPLETE = 1;
+    }
+
+    Status status = 1;
+    string ip = 2;
+    uint32 port = 3;
+    string cert = 4;
 }
 
 message Exec {
@@ -31,11 +42,15 @@ message Exec {
 
 message PortScan {
     string ip = 1;
-    int32 startPort = 2;
-    int32 endPort = 3;
+    uint32 startPort = 2;
+    uint32 endPort = 3;
     bool cancel = 4; // True if should cancel current running scan
 }
 
+message IPScan {
+    string ip_range = 1;
+    bool cancel = 2;
+}
 message ListModules {}
 
 message GetFile {
@@ -65,5 +80,6 @@ message CheckCmdReply {
         UploadFile uploadfile = 4; 
         PortScan portscan = 5;
         ListModules listmodules = 6;        
+        IPScan ipScan = 7;        
     }
 }

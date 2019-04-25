@@ -23,7 +23,7 @@ type waterpistol struct {
 	term    *readline.Instance
 }
 
-var valid_modules = []string{"sh", "portscan", "file_extractor", "file_uploader"}
+var valid_modules = []string{"sh", "portscan", "file_extractor", "file_uploader", "ip_scan"}
 
 func (waterpistol *waterpistol) writeString(str string) {
 	log.Print(str)
@@ -81,20 +81,25 @@ func filterInput(r rune) (rune, bool) {
 	return r, true
 }
 
-func valid_check(string) []string {
+func (waterpistol *waterpistol) valid_disable(string) []string {
+	return waterpistol.modules
+}
+
+func (waterpistol *waterpistol) valid_enable(string) []string {
 	return valid_modules
 }
 
-var completer = readline.NewPrefixCompleter(
-	readline.PcItem("compile"),
-	readline.PcItem("enable", readline.PcItemDynamic(valid_check)),
-	readline.PcItem("disable"),
-	readline.PcItem("exit"),
-	readline.PcItem("ssh"),
-)
-
 func (waterpistol *waterpistol) setup_terminal() {
-	log.SetFlags(log.Ltime)
+	log.SetFlags(0)
+	log.SetPrefix("\033[91mhax >\033[0m ")
+
+	var completer = readline.NewPrefixCompleter(
+		readline.PcItem("compile"),
+		readline.PcItem("enable", readline.PcItemDynamic(waterpistol.valid_enable)),
+		readline.PcItem("disable", readline.PcItemDynamic(waterpistol.valid_disable)),
+		readline.PcItem("exit"),
+		readline.PcItem("ssh"),
+	)
 
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          "\033[96mwaterpistol%\033[0m ",
@@ -132,15 +137,25 @@ func (waterpistol *waterpistol) enable(module string) {
 }
 
 func (waterpistol *waterpistol) disable(module string) {
+	old_modules := waterpistol.modules
+	waterpistol.modules = []string{}
+
+	for _, m := range old_modules {
+		if strings.Compare(m, module) != 0 {
+			waterpistol.modules = append(waterpistol.modules, m)
+		}
+	}
 
 }
+
 func help() {
 	log.Println("Commands:")
-	log.Println("\tcompile          -> ")
-	log.Println("\tssh              -> ")
-	log.Println("\tenable <module>  -> ")
-	log.Println("\tdisable <module> -> ")
-	log.Println("\thelp             -> ")
+	log.Println("\tcompile          -> Compile c2 && implant and run c2 ")
+	log.Println("\tssh              -> ssh into c2")
+	log.Println("\tlist             -> List currently enabled modules")
+	log.Println("\tenable <module>  -> Enable a module (tab complete)")
+	log.Println("\tdisable <module> -> Disable a module (tab complete)")
+	log.Println("\thelp             -> this")
 }
 
 func (waterpistol *waterpistol) handle(line string) {
@@ -170,6 +185,8 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 		waterpistol.disable(parts[1])
+	case "list":
+		waterpistol.writeString("Modules: " + strings.Join(waterpistol.modules, ", "))
 	case "help":
 		help()
 	default:
@@ -199,6 +216,6 @@ func main() {
 
 	waterpistol.setup_terminal()
 	defer waterpistol.term.Close()
-
+	help()
 	waterpistol.ReadUserInput()
 }

