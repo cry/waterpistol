@@ -60,10 +60,10 @@ func checkProgram() {
 }
 
 func (waterpistol *waterpistol) ssh() {
-	log.Println("Running c2")
-
 	// CMD :  ssh -t root@ip screen -dr c2
-	cmd := exec.Command("ssh", "-t", "root@"+waterpistol.ip, "screen", "-dr", "c2")
+	//	cmd := exec.Command("ssh", "-i", "./id_c2", "-t", "ec2-user@"+waterpistol.ip, "screen", "-dr", "c2")
+	// Instead of scren, why not just run it on load
+	cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking no", "-i", "./id_c2", "-t", "ec2-user@"+waterpistol.ip, "./c2 ./cert.pem ./key.pem")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -152,6 +152,7 @@ func help() {
 	log.Println("Commands:")
 	log.Println("\tcompile          -> Compile c2 && implant and run c2 ")
 	log.Println("\tssh              -> ssh into c2")
+	log.Println("\tdestro           -> destroy c2 instance")
 	log.Println("\tlist             -> List currently enabled modules")
 	log.Println("\tenable <module>  -> Enable a module (tab complete)")
 	log.Println("\tdisable <module> -> Disable a module (tab complete)")

