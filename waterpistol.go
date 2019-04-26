@@ -143,7 +143,7 @@ func (waterpistol *waterpistol) setup_terminal() {
 		readline.PcItem("enable", readline.PcItemDynamic(waterpistol.valid_enable)),
 		readline.PcItem("disable", readline.PcItemDynamic(waterpistol.valid_disable)),
 		readline.PcItem("exit"),
-		readline.PcItem("ssh"),
+		readline.PcItem("login"),
 	)
 
 	l, err := readline.NewEx(&readline.Config{
@@ -204,7 +204,7 @@ func help() {
 	log.Println("Commands:")
 	log.Println("\tnew              -> Create a new malware project")
 	log.Println("\tcompile          -> Compile c2 && implant and run c2 ")
-	log.Println("\tssh              -> ssh into c2")
+	log.Println("\tlogin            -> login into c2")
 	log.Println("\tdestroy          -> destroy c2 instance")
 	log.Println("\tlist             -> List currently enabled modules")
 	log.Println("\tenable <module>  -> Enable a module (tab complete)")
@@ -238,7 +238,7 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 		current_project.compile_c2_implant()
-	case "ssh":
+	case "login":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
 			log.Print("Maybe create a `new` project\n")

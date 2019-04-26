@@ -224,7 +224,9 @@ var completer = readline.NewPrefixCompleter(
 	readline.PcItem("getfile"),
 	readline.PcItem("putfile", readline.PcItemDynamic(listfiles)),
 	readline.PcItem("portscan"),
+	readline.PcItem("ipscan"),
 	readline.PcItem("kill"),
+	readline.PcItem("sleep"),
 	readline.PcItem("help"),
 )
 
