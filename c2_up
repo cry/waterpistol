@@ -19,6 +19,7 @@ fi
 
 export C2_KEYPAIR_PUB_PATH="${C2_KEYPAIR_PRIV_PATH}.pub"
 export C2_KEYPAIR_PUB="$(cat ${C2_KEYPAIR_PUB_PATH})"
+export C2_NONCE="$(uuidgen | cut -d- -f1)"
 
 cat "malware.tf_" | envsubst > malware.tf 
 
