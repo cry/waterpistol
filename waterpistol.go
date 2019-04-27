@@ -14,12 +14,21 @@ import (
 	"time"
 )
 
+const DEFAULT_GOOS = "linux"
+const DEFAULT_ARCH = "amd64"
+
+var ARCHS = map[string][]string{"linux": []string{"amd64", "386", "arm64", "arm"}, "windows": []string{"386", "amd64"}, "darwin": []string{"386", "amd64", "arm", "arm64"}}
+
+var VALID_ARCHS = []string{"amd64", "386", "arm64", "arm"}
+
 type project struct {
 	name    string
 	srcdir  string
 	srcid   string
 	ip      string
 	port    int
+	GOOS    string
+	GOARCH  string
 	modules []string
 }
 
@@ -28,6 +37,26 @@ type waterpistol struct {
 	term     *readline.Instance
 	current  int
 	projects []project
+}
+
+func (project *project) set_arch(os string, arch string) {
+	found := false
+	for _, a := range ARCHS[os] {
+		if strings.Compare(a, arch) == 0 {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		log.Println(os, arch, "isn't a valid os")
+		log.Println("Valids are: ", ARCHS)
+		return
+	}
+
+	project.GOOS = os
+	project.GOARCH = arch
+	log.Println("OS and ARCH set to", os, arch)
 }
 
 func generate_funny_name() string {
@@ -134,14 +163,37 @@ func (waterpistol *waterpistol) valid_enable(string) []string {
 	return valid_modules()
 }
 
+func (waterpistol *waterpistol) valid_goos(string) []string {
+	if waterpistol.current_project() == nil {
+		return []string{}
+	}
+	keys := make([]string, len(ARCHS))
+
+	i := 0
+	for k := range ARCHS {
+		keys[i] = k
+		i++
+	}
+	return keys
+}
+
+func (waterpistol *waterpistol) valid_archs(string) []string {
+	if waterpistol.current_project() == nil {
+		return []string{}
+	}
+	return VALID_ARCHS
+}
+
 func (waterpistol *waterpistol) setup_terminal() {
 	log.SetFlags(0)
 	log.SetPrefix("\033[91mhax >\033[0m ")
 
 	var completer = readline.NewPrefixCompleter(
+		readline.PcItem("new"),
 		readline.PcItem("compile"),
 		readline.PcItem("enable", readline.PcItemDynamic(waterpistol.valid_enable)),
 		readline.PcItem("disable", readline.PcItemDynamic(waterpistol.valid_disable)),
+		readline.PcItem("setos", readline.PcItemDynamic(waterpistol.valid_goos, readline.PcItemDynamic(waterpistol.valid_archs))),
 		readline.PcItem("exit"),
 		readline.PcItem("login"),
 	)
@@ -202,14 +254,15 @@ func (project *project) disable(module string) {
 
 func help() {
 	log.Println("Commands:")
-	log.Println("\tnew              -> Create a new malware project")
-	log.Println("\tcompile          -> Compile c2 && implant and run c2 ")
-	log.Println("\tlogin            -> login into c2")
-	log.Println("\tdestroy          -> destroy c2 instance")
-	log.Println("\tlist             -> List currently enabled modules")
-	log.Println("\tenable <module>  -> Enable a module (tab complete)")
-	log.Println("\tdisable <module> -> Disable a module (tab complete)")
-	log.Println("\thelp             -> this")
+	log.Println("\tnew                -> Create a new malware project")
+	log.Println("\tsetos <os> <arch>  -> Set architecture and operating system for implant")
+	log.Println("\tcompile            -> Compile c2 && implant and run c2 ")
+	log.Println("\tlogin              -> login into c2")
+	log.Println("\tdestroy            -> destroy c2 instance")
+	log.Println("\tlist               -> List currently enabled modules")
+	log.Println("\tenable <module>    -> Enable a module (tab complete)")
+	log.Println("\tdisable <module>   -> Disable a module (tab complete)")
+	log.Println("\thelp               -> this")
 }
 
 func (waterpistol *waterpistol) handle(line string) {
@@ -221,11 +274,23 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 
-		project := project{name: generate_funny_name()}
+		project := project{name: generate_funny_name(), GOOS: DEFAULT_GOOS, GOARCH: DEFAULT_ARCH}
 		waterpistol.current = waterpistol.current + 1
 		waterpistol.projects = append(waterpistol.projects, project)
 		log.Println("Created new project `" + project.name + "`")
 		waterpistol.term.SetPrompt("\033[96mwaterpistol \033[91m<" + project.name + ">\033[96m%\033[0m ")
+	case "setos":
+		current_project := waterpistol.current_project()
+		if current_project == nil {
+			log.Print("Maybe create a `new` project\n")
+			return
+		}
+
+		if len(parts) != 3 {
+			help()
+			return
+		}
+		current_project.set_arch(parts[1], parts[2])
 	case "compile":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
@@ -280,6 +345,7 @@ func (waterpistol *waterpistol) handle(line string) {
 		}
 
 		log.Print("Modules: " + strings.Join(current_project.modules, ", "))
+		log.Println("Arch:", current_project.GOOS, current_project.GOARCH)
 	case "destroy":
 		log.Println("Destroying c2 && ec2 instance")
 		out, err := exec.Command("./c2_down").CombinedOutput()

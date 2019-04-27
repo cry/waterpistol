@@ -8,21 +8,20 @@ import (
 	"strings"
 )
 
-const shorten_page = "https://cutt.ly/scripts/shortenUrl.php"
+const shorten_page = "https://api-ssl.bitly.com/v4/shorten"
+const token_not_mine = "c28a95a72f7b149061cfac25417628733195dde2"
 
 func shorten(url string) string {
-	body := `-----------------------------1585130260283869584310048763
-Content-Disposition: form-data; name="url"
+	body := `{
+  "long_url": "%s",
+  "group_guid": "Bj4r63akxYF"
+}`
 
-%s
------------------------------1585130260283869584310048763`
 	body = fmt.Sprintf(body, url)
 
 	req, err := http.NewRequest("POST", shorten_page, bytes.NewBuffer([]byte(body)))
 
-	req.Header.Set("Content-Type", "multipart/form-data; boundary=---------------------------1585130260283869584310048763")
-	req.Header.Set("Referer", "https://cutt.ly")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:66.0) Gecko/20100101 Firefox/66.0")
+	req.Header.Set("Authorization", "Bearer "+token_not_mine)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -32,5 +31,12 @@ Content-Disposition: form-data; name="url"
 	defer resp.Body.Close()
 
 	newbody, _ := ioutil.ReadAll(resp.Body)
-	return strings.TrimSpace(string(newbody))
+	for _, line := range strings.Split(string(newbody), ",") {
+		if strings.Contains(line, "link") {
+			link := strings.SplitN(line, ":", 2)[1]
+			return link[1 : len(link)-1]
+		}
+	}
+
+	return string(newbody)
 }
