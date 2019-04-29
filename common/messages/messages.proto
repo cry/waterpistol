@@ -6,14 +6,6 @@ service Malware {
     rpc CheckCommandQueue (CheckCmdRequest) returns (CheckCmdReply) {}    
 }
 
-message ImplantReply {
-    string module = 1;
-    bytes args = 2; // Optional
-    PortScanReply portscan = 3; // Optional 
-    IPScanReply ipscan = 4; // Optional 
-    int32 error = 5; // Optional 
-}
-
 message PortScanReply {
     enum Status {
         IN_PROGRESS = 0;
@@ -21,7 +13,7 @@ message PortScanReply {
     }
 
     Status status = 1;
-    int32 found = 2;
+    uint32 found = 2;
 }
 message IPScanReply {
     enum Status {
@@ -31,7 +23,7 @@ message IPScanReply {
 
     Status status = 1;
     string ip = 2;
-    int32 port = 3;
+    uint32 port = 3;
 }
 
 message Exec {
@@ -50,7 +42,6 @@ message IPScan {
     string ip_range = 1;
     bool cancel = 2;
 }
-message ListModules {}
 
 message GetFile {
     string filename = 1;
@@ -64,9 +55,15 @@ message UploadFile {
 // Implant -> C2
 message CheckCmdRequest {
     bytes random_padding = 999;
+    string module = 998;
+
     oneof message {
         int64 heartbeat = 1;
-        ImplantReply reply = 2;
+        bytes data = 2;
+        PortScanReply portscan = 3; 
+        IPScanReply ipscan = 4; 
+        int32 error = 5; 
+
     }
 }
 
@@ -74,15 +71,17 @@ message CheckCmdRequest {
 // C2 -> Implant
 message CheckCmdReply {
     bytes random_padding = 999;
+
     oneof message {
         int64 heartbeat = 1;
-        int64 sleep = 99;
-        int64 kill = 100; // Immediatly exit
-        Exec exec = 2;
-        GetFile getfile = 3;
-        UploadFile uploadfile = 4; 
-        PortScan portscan = 5;
-        ListModules listmodules = 6;        
-        IPScan ipScan = 7;        
+        int64 sleep = 2;
+        bool listmodules = 3;        
+        bool kill = 99; // Immediatly exit
+
+        Exec exec = 10;
+        GetFile getfile = 20;
+        UploadFile uploadfile = 30; 
+        PortScan portscan = 40;
+        IPScan ipScan = 50;        
     }
 }
