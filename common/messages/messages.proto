@@ -63,6 +63,7 @@ message UploadFile {
 
 // Implant -> C2
 message CheckCmdRequest {
+    bytes random_padding = 999;
     oneof message {
         int64 heartbeat = 1;
         ImplantReply reply = 2;
@@ -72,6 +73,7 @@ message CheckCmdRequest {
 
 // C2 -> Implant
 message CheckCmdReply {
+    bytes random_padding = 999;
     oneof message {
         int64 heartbeat = 1;
         int64 sleep = 99;

