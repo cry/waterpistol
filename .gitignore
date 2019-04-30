@@ -4,4 +4,5 @@ id_c2.pub
 *.tfstate
 *.tfstate.*
 .terraform/
-malware
+waterpistol
+

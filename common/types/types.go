@@ -16,12 +16,12 @@ HandleMessage is called from basic_tcp_network every time a message is received 
 */
 
 const (
-	ERR_FILE_NOT_FOUND       int32 = 1
-	ERR_MODULE_NOT_IMPL      int32 = 2
-	ERR_PORTSCAN_RUNNING     int32 = 3
-	ERR_IPSCAN_RUNNING       int32 = 4
-	ERR_INVALID_RANGE_IPSCAN int32 = 5
-	ERR_CMD_TIMEOUT          int32 = 6
+	ERR_FILE_NOT_FOUND int32 = iota + 1
+	ERR_MODULE_NOT_IMPL
+	ERR_PORTSCAN_RUNNING
+	ERR_IPSCAN_RUNNING
+	ERR_INVALID_RANGE_IPSCAN
+	ERR_CMD_TIMEOUT
 )
 
 var ErrorToString = map[int32]string{

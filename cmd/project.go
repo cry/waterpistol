@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -19,15 +21,15 @@ var VALID_ARCHS = []string{"amd64", "386", "arm64", "arm"}
 
 // Project structure
 type project struct {
-	name         string
-	srcdir       string
-	srcid        string
-	ip           string
-	port         int
+	Name         string
+	Srcdir       string
+	Srcid        string
+	Ip           string
+	Port         int
 	GOOS         string
 	GOARCH       string
-	modules      []string
-	download_url string
+	Modules      []string
+	Download_url string
 }
 
 // Checks that the arch and os are valid and can be paired
@@ -57,7 +59,7 @@ func (project *project) ssh() {
 	// CMD :  ssh -t root@ip screen -dr c2
 	//	cmd := exec.Command("ssh", "-i", "./id_c2", "-t", "ec2-user@"+waterpistol.ip, "screen", "-dr", "c2")
 	// Instead of scren, why not just run it on load
-	cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking no", "-i", HOME_DIR+project.name+"/id_c2", "-t", "ec2-user@"+project.ip, "./c2 ./cert.pem ./key.pem")
+	cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking no", "-i", HOME_DIR+project.Name+"/id_c2", "-t", "ec2-user@"+project.Ip, "./c2 ./cert.pem ./key.pem")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -81,24 +83,75 @@ func (project *project) enableModule(module string) {
 		return
 	}
 
-	for _, s := range project.modules {
+	for _, s := range project.Modules {
 		if strings.Compare(s, module) == 0 {
 			log.Println("Module already enabled")
 			return
 		}
 	}
 
-	project.modules = append(project.modules, module)
+	project.Modules = append(project.Modules, module)
 }
 
 func (project *project) disableModule(module string) {
-	old_modules := project.modules
-	project.modules = []string{}
+	old_modules := project.Modules
+	project.Modules = []string{}
 
 	for _, m := range old_modules {
 		if strings.Compare(m, module) != 0 {
-			project.modules = append(project.modules, m)
+			project.Modules = append(project.Modules, m)
 		}
 	}
 
+}
+
+// Saves project specs to disk
+func (project *project) saveProject() {
+	data, err := json.MarshalIndent(project, "", " ")
+
+	if err != nil {
+		log.Println("Error saving project", project.Name)
+		return
+	}
+
+	err = ioutil.WriteFile(HOME_DIR+project.Name+"/data.json", data, 0644)
+
+	if err != nil {
+		log.Println("Error saving project", project.Name)
+		return
+	}
+
+}
+
+func load_projects() []project {
+	files, err := ioutil.ReadDir(HOME_DIR)
+	log.Println("Loading previous projects")
+
+	checkError(err)
+
+	ret := []project{}
+
+	for _, f := range files {
+		if !f.IsDir() {
+			continue
+		}
+
+		file, err := ioutil.ReadFile(HOME_DIR + f.Name() + "/data.json")
+		if err != nil {
+			log.Println("Failed to load", f.Name())
+			log.Println(err)
+			continue
+		}
+
+		proj := project{}
+		err = json.Unmarshal([]byte(file), &proj)
+		if err != nil {
+			log.Println("Failed to load", f.Name())
+			log.Println(err)
+			continue
+		}
+		ret = append(ret, proj)
+	}
+
+	return ret
 }

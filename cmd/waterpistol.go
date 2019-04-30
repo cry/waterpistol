@@ -142,7 +142,7 @@ func (waterpistol *waterpistol) valid_disable(string) []string {
 	if waterpistol.current_project() == nil {
 		return []string{}
 	}
-	return waterpistol.current_project().modules
+	return waterpistol.current_project().Modules
 }
 
 func (waterpistol *waterpistol) valid_enable(string) []string {
@@ -228,11 +228,14 @@ func (waterpistol *waterpistol) handle(line string) {
 	parts := strings.Split(strings.TrimSpace(line), " ")
 	switch parts[0] {
 	case "new":
-		project := project{name: generate_funny_name(), GOOS: DEFAULT_GOOS, GOARCH: DEFAULT_ARCH}
+		project := project{Name: generate_funny_name(), GOOS: DEFAULT_GOOS, GOARCH: DEFAULT_ARCH}
 		waterpistol.current = waterpistol.current + 1
 		waterpistol.projects = append(waterpistol.projects, project)
-		log.Println("Created new project `" + project.name + "`")
-		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol " + LIGHTRED + "<" + project.name + ">" + LIGHTBLUE + "% " + RESET)
+		log.Println("Created new project `" + project.Name + "`")
+		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol " + LIGHTRED + "<" + project.Name + ">" + LIGHTBLUE + "% " + RESET)
+
+		os.Mkdir(HOME_DIR+project.Name, os.ModePerm)
+		project.saveProject()
 	case "project":
 		if len(waterpistol.projects) == 0 {
 			log.Println("No projects created yet")
@@ -254,9 +257,9 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 		waterpistol.current = project
-		log.Println("Current Project set to", project, waterpistol.current_project().name)
+		log.Println("Current Project set to", project, waterpistol.current_project().Name)
 
-		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol " + LIGHTRED + "<" + waterpistol.current_project().name + ">" + LIGHTBLUE + "% " + RESET)
+		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol " + LIGHTRED + "<" + waterpistol.current_project().Name + ">" + LIGHTBLUE + "% " + RESET)
 	case "setos":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
@@ -269,6 +272,7 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 		current_project.set_arch(parts[1], parts[2])
+		current_project.saveProject()
 	case "compile":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
@@ -276,23 +280,24 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 
-		if len(current_project.modules) == 0 {
+		if len(current_project.Modules) == 0 {
 			log.Print("Maybe `enable` a few modules\n")
 			return
 		}
 
-		if current_project.ip != "" {
+		if current_project.Ip != "" {
 			log.Print("This project is already compiled!!!")
 		}
 
 		current_project.compile_c2_implant()
+		current_project.saveProject()
 	case "login":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
 			log.Print("Maybe create a `new` project\n")
 			return
 		}
-		if len(current_project.ip) == 0 {
+		if len(current_project.Ip) == 0 {
 			log.Print("Maybe `compile` first\n")
 			return
 		}
@@ -309,6 +314,7 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 		current_project.enableModule(parts[1])
+		current_project.saveProject()
 	case "disable":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
@@ -320,6 +326,7 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 		current_project.disableModule(parts[1])
+		current_project.saveProject()
 	case "list":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
@@ -327,7 +334,7 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 
-		log.Print("Modules: " + strings.Join(current_project.modules, ", "))
+		log.Print("Modules: " + strings.Join(current_project.Modules, ", "))
 		log.Println("Arch:", current_project.GOOS, current_project.GOARCH)
 	case "destroy":
 		current_project := waterpistol.current_project()
@@ -337,10 +344,12 @@ func (waterpistol *waterpistol) handle(line string) {
 		}
 
 		log.Println("Destroying project")
-		if current_project.ip != "" {
+		if current_project.Ip != "" {
 			log.Println("Destroying c2 && ec2 instance")
-			checkCommand("cmd/c2_down", HOME_DIR+current_project.name)
+			checkCommand("cmd/c2_down", HOME_DIR+current_project.Name)
 		}
+
+		os.RemoveAll(HOME_DIR + current_project.Name)
 
 		waterpistol.remove_project(waterpistol.current)
 		waterpistol.current = -1
@@ -351,20 +360,20 @@ func (waterpistol *waterpistol) handle(line string) {
 		log.Println("Current Projects:")
 		for i, project := range waterpistol.projects {
 			fmt.Print(i, ": ")
-			if project.ip == "" {
-				fmt.Println(RESET+"<"+RED+project.name+RESET+">",
+			if project.Ip == "" {
+				fmt.Println(RESET+"<"+RED+project.Name+RESET+">",
 					"@",
 					"<"+RED+"NO_IP"+RESET+">",
 					":",
 					"<"+GREEN+project.GOOS+RESET+"/"+GREEN+project.GOARCH+RESET+">",
-					project.modules, RESET)
+					project.Modules, RESET)
 			} else {
-				fmt.Println(RESET+"<"+GREEN+project.name+RESET+">",
+				fmt.Println(RESET+"<"+GREEN+project.Name+RESET+">",
 					"@",
-					"<"+GREEN+project.ip+RESET+">",
+					"<"+GREEN+project.Ip+RESET+">",
 					":",
 					"<"+GREEN+project.GOOS+RESET+"/"+GREEN+project.GOARCH+RESET+">",
-					project.modules, " : "+BLUE+project.download_url, RESET)
+					project.Modules, " : "+BLUE+project.Download_url, RESET)
 			}
 		}
 	default:
@@ -394,9 +403,10 @@ func main() {
 		panic("Failed to make ~/.waterpistol directory")
 	}
 
-	waterpistol := &waterpistol{current: -1}
+	waterpistol := &waterpistol{current: -1, projects: load_projects()}
 
 	waterpistol.setup_terminal()
+	log.Println("Loaded", len(waterpistol.projects), "projects!")
 	defer waterpistol.term.Close()
 	help()
 	waterpistol.ReadUserInput()

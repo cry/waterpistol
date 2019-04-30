@@ -10,4 +10,3 @@ fi
 cd $1
 (echo "yes" | terraform destroy >&2) || exit $?
 cd -
-rm -rf $1
