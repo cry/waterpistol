@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+if ! basename "$PWD" | grep "malware" &>/dev/null; then
+    echo "Please run this in the go/src/malware folder"
+    exit 1
+fi
+
+go build -o waterpistol malware/cmd

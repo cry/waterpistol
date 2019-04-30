@@ -13,4 +13,8 @@ Put your secret keys and ID in `~/.aws/credentials`
 aws_access_key_id=
 aws_secret_access_key=
 ```
+
+
+## Protogen
+If updating protocol, run this command
 protoc -I . --go_out=plugins=grpc:. common/messages/messages.proto
