@@ -15,10 +15,11 @@ func main() {
 		signal.Ignore(syscall.SIGHUP)
 	}
 
-	for _, module := range included_modules.Modules {
-		module.Init()
-	}
+	defer func() {
+		for _, module := range included_modules.Modules {
+			module.Shutdown()
+		}
+	}()
 
-	network := basic_tcp_network.Create() // Network is always last to init (Can't get commands until other modules started)
-	network.Init()                        // Shouldn't return
+	basic_tcp_network.Init() // Network is always last to init (Can't get commands until other modules started)
 }

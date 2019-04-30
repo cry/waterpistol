@@ -6,7 +6,6 @@ import "malware/common/messages"
 // set of basic operations that can be called by the main core
 type Module interface {
 	ID() string
-	Init()
 	HandleMessage(message *messages.CheckCmdReply, reply_function func(*messages.CheckCmdRequest)) bool
 	Shutdown()
 }

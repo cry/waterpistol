@@ -36,10 +36,6 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 	return true
 }
 
-// This module has no init/shutdown needs
-func (settings settings) Init() {
-}
-
 func (settings settings) Shutdown() {
 }
 

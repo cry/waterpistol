@@ -29,8 +29,6 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 	return true
 }
 
-func (settings settings) Init() {
-}
 func (settings settings) Shutdown() {
 }
 

