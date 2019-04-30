@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/chzyer/readline"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/chzyer/readline"
 )
 
 // Colour constants
@@ -287,6 +288,7 @@ func (waterpistol *waterpistol) handle(line string) {
 
 		if current_project.Ip != "" {
 			log.Print("This project is already compiled!!!")
+			return
 		}
 
 		current_project.compile_c2_implant()
