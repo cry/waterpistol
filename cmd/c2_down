@@ -7,4 +7,7 @@ if ! hash terraform > /dev/null 2>&1; then
     exit 1
 fi
 
+cd $1
 (echo "yes" | terraform destroy >&2) || exit $?
+cd -
+rm -rf $1

@@ -57,7 +57,7 @@ func (project *project) ssh() {
 	// CMD :  ssh -t root@ip screen -dr c2
 	//	cmd := exec.Command("ssh", "-i", "./id_c2", "-t", "ec2-user@"+waterpistol.ip, "screen", "-dr", "c2")
 	// Instead of scren, why not just run it on load
-	cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking no", "-i", "./id_c2", "-t", "ec2-user@"+project.ip, "./c2 ./cert.pem ./key.pem")
+	cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking no", "-i", HOME_DIR+project.name+"/id_c2", "-t", "ec2-user@"+project.ip, "./c2 ./cert.pem ./key.pem")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

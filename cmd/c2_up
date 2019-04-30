@@ -9,22 +9,23 @@ fi
 
 export C2_AMI="${C2_AMI:-ami-09b42976632b27e9b}"
 export C2_KEYPAIR_NAME="${C2_KEYPAIR_NAME:-$(whoami)@$(hostname -s)}"
-export C2_KEYPAIR_PRIV_PATH="./id_c2"
+export C2_KEYPAIR_PRIV_PATH="$1/id_c2"
 
 if [[ ! -f "${C2_KEYPAIR_PRIV_PATH}" ]]; then
     echo "Missing c2 ssh keypair, generating." >&2
 
-    ssh-keygen -t rsa -f "${C2_KEYPAIR_PRIV_PATH}" -N ''
+    ssh-keygen -t rsa -f "${C2_KEYPAIR_PRIV_PATH}" -N '' >&2
 fi
 
 export C2_KEYPAIR_PUB_PATH="${C2_KEYPAIR_PRIV_PATH}.pub"
 export C2_KEYPAIR_PUB="$(cat ${C2_KEYPAIR_PUB_PATH})"
 export C2_NONCE="$(uuidgen | cut -d- -f1)"
 
-cat "malware.tf_" | envsubst > malware.tf 
-
+cat "malware.tf_" | envsubst > $1/malware.tf 
+cd $1
 terraform init >&2
 
 (echo "yes" | terraform apply >&2) || exit $?
 
 terraform output c2_ip
+cd - >&2

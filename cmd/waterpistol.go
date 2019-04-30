@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/chzyer/readline"
 	"io"
 	"io/ioutil"
 	"log"
@@ -9,19 +10,22 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/chzyer/readline"
 )
 
 // Colour constants
 const (
-	RESET = "\033[0m"
-	RED   = "\033[31m"
-	GREEN = "\033[32m"
-	BLUE  = "\033[34m"
+	RESET     = "\033[0m"
+	RED       = "\033[31m"
+	GREEN     = "\033[32m"
+	BLUE      = "\033[34m"
+	LIGHTBLUE = "\033[96m"
+	LIGHTRED  = "\033[91m"
 )
+
+var HOME_DIR = os.Getenv("HOME") + "/.waterpistol/"
 
 // Contains program settings
 type waterpistol struct {
@@ -33,6 +37,13 @@ type waterpistol struct {
 /**
 Helper functions
 	**/
+
+//Remove project at index, freeing the memory
+func (waterpistol *waterpistol) remove_project(index int) {
+	copy(waterpistol.projects[index:], waterpistol.projects[index+1:])
+	waterpistol.projects[len(waterpistol.projects)-1] = project{}
+	waterpistol.projects = waterpistol.projects[:len(waterpistol.projects)-1]
+}
 
 func checkError(err error) {
 	if err != nil {
@@ -55,13 +66,12 @@ func checkCommand(cmd string, args ...string) string {
 }
 
 func generate_funny_name() string {
-	words := []string{ // Should load from file but im lazy
-		"photocopy", "theorist", "trustee", "hook", "eliminate", "crop", "registration", "snub", "reliance",
-		"bank", "forge", "old", "researcher", "lifestyle", "civilization", "hide", "knock", "choice",
-		"hostile", "relevance", "transform", "journal", "deal", "complex", "demonstrate", "dialect",
-		"meaning", "thread", "hell", "competence", "enjoy", "rain", "rhythm", "army", "provide", "spontaneous",
-		"kidnap", "bubble", "exempt", "piano", "mastermind", "writer", "watch", "Koran", "tenant", "negative",
-		"smash", "just", "discipline", "rub"}
+	file, err := ioutil.ReadFile("wordlist")
+
+	if err != nil {
+		panic(err)
+	}
+	words := strings.Split(string(file), "\n")
 
 	num1 := rand.Intn(len(words))
 	num2 := rand.Intn(len(words))
@@ -166,7 +176,7 @@ func (waterpistol *waterpistol) valid_archs(string) []string {
 // Setup readline with correct autocompleter and flags
 func (waterpistol *waterpistol) setup_terminal() {
 	log.SetFlags(0)
-	log.SetPrefix("\033[91mpistol>\033[0m ")
+	log.SetPrefix(LIGHTRED + "pistol> " + RESET)
 
 	var completer = readline.NewPrefixCompleter(
 		readline.PcItem("new"),
@@ -177,12 +187,13 @@ func (waterpistol *waterpistol) setup_terminal() {
 		readline.PcItem("exit"),
 		readline.PcItem("list"),
 		readline.PcItem("projects"),
+		readline.PcItem("project"),
 		readline.PcItem("destroy"),
 		readline.PcItem("login"),
 	)
 
 	l, err := readline.NewEx(&readline.Config{
-		Prompt:          "\033[96mwaterpistol%\033[0m ",
+		Prompt:          LIGHTBLUE + "waterpistol% " + RESET,
 		HistoryFile:     "/tmp/waterpistol.tmp",
 		AutoComplete:    completer,
 		InterruptPrompt: "^C",
@@ -209,6 +220,7 @@ func help() {
 	log.Println("\tenable <module>    -> Enable a module (tab complete)")
 	log.Println("\tdisable <module>   -> Disable a module (tab complete)")
 	log.Println("\tprojects           -> Show current projects")
+	log.Println("\tproject <id>       -> Change to project <id>")
 	log.Println("\thelp               -> this")
 }
 
@@ -216,16 +228,35 @@ func (waterpistol *waterpistol) handle(line string) {
 	parts := strings.Split(strings.TrimSpace(line), " ")
 	switch parts[0] {
 	case "new":
-		if waterpistol.current_project() != nil {
-			log.Println("Currently only support one project")
-			return
-		}
-
 		project := project{name: generate_funny_name(), GOOS: DEFAULT_GOOS, GOARCH: DEFAULT_ARCH}
 		waterpistol.current = waterpistol.current + 1
 		waterpistol.projects = append(waterpistol.projects, project)
 		log.Println("Created new project `" + project.name + "`")
-		waterpistol.term.SetPrompt("\033[96mwaterpistol \033[91m<" + project.name + ">\033[96m%\033[0m ")
+		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol " + LIGHTRED + "<" + project.name + ">" + LIGHTBLUE + "% " + RESET)
+	case "project":
+		if len(waterpistol.projects) == 0 {
+			log.Println("No projects created yet")
+			return
+		}
+
+		if len(parts) != 2 {
+			help()
+			return
+		}
+
+		project, err := strconv.Atoi(parts[1])
+		if err != nil {
+			log.Println("Project not found")
+			return
+		}
+		if project < 0 || project >= len(waterpistol.projects) {
+			log.Println("Project", project, "not found")
+			return
+		}
+		waterpistol.current = project
+		log.Println("Current Project set to", project, waterpistol.current_project().name)
+
+		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol " + LIGHTRED + "<" + waterpistol.current_project().name + ">" + LIGHTBLUE + "% " + RESET)
 	case "setos":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
@@ -299,27 +330,41 @@ func (waterpistol *waterpistol) handle(line string) {
 		log.Print("Modules: " + strings.Join(current_project.modules, ", "))
 		log.Println("Arch:", current_project.GOOS, current_project.GOARCH)
 	case "destroy":
-		log.Println("Destroying c2 && ec2 instance")
-		checkCommand("cmd//c2_down")
+		current_project := waterpistol.current_project()
+		if current_project == nil {
+			log.Print("No project selected\n")
+			return
+		}
+
+		log.Println("Destroying project")
+		if current_project.ip != "" {
+			log.Println("Destroying c2 && ec2 instance")
+			checkCommand("cmd/c2_down", HOME_DIR+current_project.name)
+		}
+
+		waterpistol.remove_project(waterpistol.current)
+		waterpistol.current = -1
+		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol% " + RESET)
 	case "help":
 		help()
 	case "projects":
 		log.Println("Current Projects:")
-		for _, project := range waterpistol.projects {
+		for i, project := range waterpistol.projects {
+			fmt.Print(i, ": ")
 			if project.ip == "" {
 				fmt.Println(RESET+"<"+RED+project.name+RESET+">",
 					"@",
 					"<"+RED+"NO_IP"+RESET+">",
 					":",
 					"<"+GREEN+project.GOOS+RESET+"/"+GREEN+project.GOARCH+RESET+">",
-					project.modules)
+					project.modules, RESET)
 			} else {
 				fmt.Println(RESET+"<"+GREEN+project.name+RESET+">",
 					"@",
 					"<"+GREEN+project.ip+RESET+">",
 					":",
 					"<"+GREEN+project.GOOS+RESET+"/"+GREEN+project.GOARCH+RESET+">",
-					project.modules, " : "+BLUE+project.download_url)
+					project.modules, " : "+BLUE+project.download_url, RESET)
 			}
 		}
 	default:
@@ -344,6 +389,10 @@ func main() {
 	checkProgram()
 
 	rand.Seed(time.Now().UTC().UnixNano())
+
+	if os.MkdirAll(HOME_DIR, os.ModePerm) != nil {
+		panic("Failed to make ~/.waterpistol directory")
+	}
 
 	waterpistol := &waterpistol{current: -1}
 
