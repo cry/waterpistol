@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -12,6 +13,7 @@ import (
 /**
 Architectures which we support
 */
+const DEFAULT_NETWORK = "basic_tcp_network"
 const DEFAULT_GOOS = "linux"
 const DEFAULT_ARCH = "amd64"
 
@@ -21,20 +23,21 @@ var VALID_ARCHS = []string{"amd64", "386", "arm64", "arm"}
 
 // Project structure
 type project struct {
-	Name         string
-	Srcdir       string
-	Srcid        string
-	Ip           string
-	Port         int
-	GOOS         string
-	GOARCH       string
-	Modules      []string
-	Download_url string
+	Name          string
+	Srcdir        string
+	Srcid         string
+	Ip            string
+	Port          int
+	GOOS          string
+	GOARCH        string
+	Modules       []string
+	Download_url  string
+	NetworkModule string
 }
 
 // Checks that the arch and os are valid and can be paired
 // Then sets it to the projects GOOS and GOARCH
-func (project *project) set_arch(os string, arch string) {
+func (project *project) setArch(os string, arch string) {
 	found := false
 	for _, a := range ARCHS[os] {
 		if strings.Compare(a, arch) == 0 {
@@ -67,6 +70,23 @@ func (project *project) ssh() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (project *project) setNetworkModule(module string) {
+	valid := false
+	for _, s := range valid_network_modules() {
+		if strings.Compare(s, module) == 0 {
+			valid = true
+			break
+		}
+	}
+
+	if !valid {
+		log.Println("Please select a valid network module", valid_network_modules())
+		return
+	}
+
+	project.NetworkModule = module
 }
 
 func (project *project) enableModule(module string) {
@@ -121,6 +141,26 @@ func (project *project) saveProject() {
 		return
 	}
 
+}
+
+func (project *project) Print() {
+	if project.Ip == "" {
+		fmt.Println(RESET+"<"+RED+project.Name+RESET+">",
+			"@",
+			"<"+RED+"NO_IP"+RESET+">",
+			":",
+			"<"+GREEN+project.GOOS+RESET+"/"+GREEN+project.GOARCH+RESET+">",
+			RED+project.NetworkModule+RESET,
+			project.Modules, RESET)
+	} else {
+		fmt.Println(RESET+"<"+GREEN+project.Name+RESET+">",
+			"@",
+			"<"+GREEN+project.Ip+RESET+">",
+			":",
+			"<"+GREEN+project.GOOS+RESET+"/"+GREEN+project.GOARCH+RESET+">",
+			GREEN+project.NetworkModule+RESET,
+			project.Modules, " : "+BLUE+project.Download_url, RESET)
+	}
 }
 
 func load_projects() []project {

@@ -18,3 +18,8 @@ aws_secret_access_key=
 ## Protogen
 If updating protocol, run this command
 protoc -I . --go_out=plugins=grpc:. common/messages/messages.proto
+
+## Running
+
+Run ./build to compile waterpistol
+Then run ./waterpistol in this directory

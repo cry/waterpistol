@@ -22,8 +22,8 @@ const (
 	RED       = "\033[31m"
 	GREEN     = "\033[32m"
 	BLUE      = "\033[34m"
-	LIGHTBLUE = "\033[96m"
 	LIGHTRED  = "\033[91m"
+	LIGHTBLUE = "\033[96m"
 )
 
 var HOME_DIR = os.Getenv("HOME") + "/.waterpistol/"
@@ -95,10 +95,25 @@ func valid_modules() []string {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	for _, f := range files {
 		if f.IsDir() && strings.Compare(f.Name(), "included_modules") != 0 {
 			modules = append(modules, f.Name())
 		}
+	}
+
+	return modules
+}
+
+func valid_network_modules() []string {
+	modules := []string{}
+
+	files, err := ioutil.ReadDir("./implant/network_modules")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, f := range files {
+		modules = append(modules, f.Name())
 	}
 
 	return modules
@@ -153,6 +168,13 @@ func (waterpistol *waterpistol) valid_enable(string) []string {
 	return valid_modules()
 }
 
+func (waterpistol *waterpistol) valid_network(string) []string {
+	if waterpistol.current_project() == nil {
+		return []string{}
+	}
+	return valid_network_modules()
+}
+
 func (waterpistol *waterpistol) valid_goos(string) []string {
 	if waterpistol.current_project() == nil {
 		return []string{}
@@ -177,16 +199,18 @@ func (waterpistol *waterpistol) valid_archs(string) []string {
 // Setup readline with correct autocompleter and flags
 func (waterpistol *waterpistol) setup_terminal() {
 	log.SetFlags(0)
-	log.SetPrefix(LIGHTRED + "pistol> " + RESET)
+	log.SetPrefix(RED + "pistol> " + RESET)
 
 	var completer = readline.NewPrefixCompleter(
 		readline.PcItem("new"),
 		readline.PcItem("compile"),
 		readline.PcItem("enable", readline.PcItemDynamic(waterpistol.valid_enable)),
 		readline.PcItem("disable", readline.PcItemDynamic(waterpistol.valid_disable)),
-		readline.PcItem("setos", readline.PcItemDynamic(waterpistol.valid_goos, readline.PcItemDynamic(waterpistol.valid_archs))),
+		readline.PcItem("set",
+			readline.PcItem("os", readline.PcItemDynamic(waterpistol.valid_goos, readline.PcItemDynamic(waterpistol.valid_archs))),
+			readline.PcItem("network", readline.PcItemDynamic(waterpistol.valid_network))),
 		readline.PcItem("exit"),
-		readline.PcItem("list"),
+		readline.PcItem("options"),
 		readline.PcItem("projects"),
 		readline.PcItem("project"),
 		readline.PcItem("destroy"),
@@ -210,19 +234,23 @@ func (waterpistol *waterpistol) setup_terminal() {
 	waterpistol.term = l
 }
 
-func help() {
+func help(incorrect_usage bool) {
+	if incorrect_usage {
+		fmt.Println("Incorrect Usage")
+	}
 	log.Println("Commands:")
-	log.Println("\tnew                -> Create a new malware project")
-	log.Println("\tsetos <os> <arch>  -> Set architecture and operating system for implant")
-	log.Println("\tcompile            -> Compile c2 && implant and run c2 ")
-	log.Println("\tlogin              -> login into c2")
-	log.Println("\tdestroy            -> destroy c2 instance")
-	log.Println("\tlist               -> List currently enabled modules")
-	log.Println("\tenable <module>    -> Enable a module (tab complete)")
-	log.Println("\tdisable <module>   -> Disable a module (tab complete)")
-	log.Println("\tprojects           -> Show current projects")
-	log.Println("\tproject <id>       -> Change to project <id>")
-	log.Println("\thelp               -> this")
+	log.Println("\tnew                  -> Create a new malware project")
+	log.Println("\tset os <os> <arch>   -> Set architecture and operating system for implant")
+	log.Println("\tset network <module> -> Set network module")
+	log.Println("\tcompile              -> Compile c2 && implant")
+	log.Println("\tlogin                -> login into c2")
+	log.Println("\tdestroy              -> destroy c2 instance")
+	log.Println("\toptions              -> List currently enabled options")
+	log.Println("\tenable <module>      -> Enable a module (tab complete)")
+	log.Println("\tdisable <module>     -> Disable a module (tab complete)")
+	log.Println("\tprojects             -> Show current projects")
+	log.Println("\tproject <id>         -> Change to project <id>")
+	log.Println("\thelp                 -> this")
 }
 
 func (waterpistol *waterpistol) handle(line string) {
@@ -230,8 +258,8 @@ func (waterpistol *waterpistol) handle(line string) {
 	switch parts[0] {
 	case "new":
 		project := project{Name: generate_funny_name(), GOOS: DEFAULT_GOOS, GOARCH: DEFAULT_ARCH}
-		waterpistol.current = waterpistol.current + 1
 		waterpistol.projects = append(waterpistol.projects, project)
+		waterpistol.current = len(waterpistol.projects) - 1
 		log.Println("Created new project `" + project.Name + "`")
 		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol " + LIGHTRED + "<" + project.Name + ">" + LIGHTBLUE + "% " + RESET)
 
@@ -244,7 +272,7 @@ func (waterpistol *waterpistol) handle(line string) {
 		}
 
 		if len(parts) != 2 {
-			help()
+			help(true)
 			return
 		}
 
@@ -261,18 +289,36 @@ func (waterpistol *waterpistol) handle(line string) {
 		log.Println("Current Project set to", project, waterpistol.current_project().Name)
 
 		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol " + LIGHTRED + "<" + waterpistol.current_project().Name + ">" + LIGHTBLUE + "% " + RESET)
-	case "setos":
+	case "set":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
 			log.Print("Maybe create a `new` project\n")
 			return
 		}
 
-		if len(parts) != 3 {
-			help()
+		if len(parts) == 1 {
+			log.Print("Set what?")
 			return
 		}
-		current_project.set_arch(parts[1], parts[2])
+
+		switch parts[1] {
+		case "os":
+			if len(parts) != 4 {
+				help(true)
+				return
+			}
+			current_project.setArch(parts[2], parts[3])
+		case "network":
+			if len(parts) != 3 {
+				help(true)
+				return
+			}
+			current_project.setNetworkModule(parts[2])
+		default:
+			log.Print("Only valid options are os/network")
+			return
+		}
+
 		current_project.saveProject()
 	case "compile":
 		current_project := waterpistol.current_project()
@@ -312,7 +358,7 @@ func (waterpistol *waterpistol) handle(line string) {
 		}
 
 		if len(parts) != 2 {
-			help()
+			help(true)
 			return
 		}
 		current_project.enableModule(parts[1])
@@ -324,20 +370,18 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 		if len(parts) != 2 {
-			help()
+			help(true)
 			return
 		}
 		current_project.disableModule(parts[1])
 		current_project.saveProject()
-	case "list":
+	case "options":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
 			log.Print("Maybe create a `new` project\n")
 			return
 		}
-
-		log.Print("Modules: " + strings.Join(current_project.Modules, ", "))
-		log.Println("Arch:", current_project.GOOS, current_project.GOARCH)
+		current_project.Print()
 	case "destroy":
 		current_project := waterpistol.current_project()
 		if current_project == nil {
@@ -357,29 +401,16 @@ func (waterpistol *waterpistol) handle(line string) {
 		waterpistol.current = -1
 		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol% " + RESET)
 	case "help":
-		help()
+		help(false)
 	case "projects":
 		log.Println("Current Projects:")
 		for i, project := range waterpistol.projects {
 			fmt.Print(i, ": ")
-			if project.Ip == "" {
-				fmt.Println(RESET+"<"+RED+project.Name+RESET+">",
-					"@",
-					"<"+RED+"NO_IP"+RESET+">",
-					":",
-					"<"+GREEN+project.GOOS+RESET+"/"+GREEN+project.GOARCH+RESET+">",
-					project.Modules, RESET)
-			} else {
-				fmt.Println(RESET+"<"+GREEN+project.Name+RESET+">",
-					"@",
-					"<"+GREEN+project.Ip+RESET+">",
-					":",
-					"<"+GREEN+project.GOOS+RESET+"/"+GREEN+project.GOARCH+RESET+">",
-					project.Modules, " : "+BLUE+project.Download_url, RESET)
-			}
+			project.Print()
 		}
 	default:
-		log.Print("What??")
+		fmt.Println("Command not found")
+		help(false)
 	}
 }
 
@@ -410,6 +441,6 @@ func main() {
 	waterpistol.setup_terminal()
 	log.Println("Loaded", len(waterpistol.projects), "projects!")
 	defer waterpistol.term.Close()
-	help()
+	fmt.Println("Try `help`")
 	waterpistol.ReadUserInput()
 }

