@@ -27,8 +27,9 @@ module
 
 */
 
-// Common ports
-var PORTS = []uint32{22, 23, 25, 53, 80, 443, 514, 5431, 3306, 6379, 9200, 9300, 8080, 8000}
+// Common ports above 1000
+// Should add more
+var PORTS = []uint32{5431, 3306, 6379, 9200, 9300, 8080, 8000}
 
 type state struct {
 	scanning bool                // Whether or not a scan is currently running
@@ -111,6 +112,12 @@ func (settings settings) ip_scan(ipscan *messages.IPScan, callback func(*message
 			go func(ip string) {
 				defer settings.state.lock.Release(1)
 				defer wg.Done()
+
+				for port := uint32(1); port <= 1000; port++ {
+					if ScanPort(ip, port, time.Second/4) {
+						callback(messages.Implant_ipscan_in_progress(settings.ID(), ip, port))
+					}
+				}
 
 				for _, port := range PORTS {
 					if ScanPort(ip, port, time.Second/4) {

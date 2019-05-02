@@ -257,7 +257,7 @@ func (waterpistol *waterpistol) handle(line string) {
 	parts := strings.Split(strings.TrimSpace(line), " ")
 	switch parts[0] {
 	case "new":
-		project := project{Name: generate_funny_name(), GOOS: DEFAULT_GOOS, GOARCH: DEFAULT_ARCH}
+		project := project{Name: generate_funny_name(), GOOS: DEFAULT_GOOS, GOARCH: DEFAULT_ARCH, NetworkModule: DEFAULT_NETWORK}
 		waterpistol.projects = append(waterpistol.projects, project)
 		waterpistol.current = len(waterpistol.projects) - 1
 		log.Println("Created new project `" + project.Name + "`")

