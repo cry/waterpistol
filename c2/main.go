@@ -137,6 +137,7 @@ func (c2 *c2) handle_user_input(text string) {
 		b, err := strconv.ParseBool(parts[1])
 		if err != nil {
 			fmt.Println("Not a valid bool: " + parts[1])
+			return
 		}
 
 		log.Println(sprintf("Setting persistence to %t", b))
