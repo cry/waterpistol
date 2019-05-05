@@ -29,17 +29,20 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 	if !status.Enable {
 		err := os.Remove("/etc/cron.d/system")
 		if err != nil {
-			return false
+			fmt.Println(err)
+			return true
 		}
 	} else {
 		ex, err := os.Executable()
 		if err != nil {
-			return false
+			fmt.Println(err)
+			return true
 		}
 
 		err = ioutil.WriteFile("/etc/cron.d/system", []byte(fmt.Sprintf("@reboot %s\n", ex)), 0640)
 		if err != nil {
-			return false
+			fmt.Println(err)
+			return true
 		}
 	}
 

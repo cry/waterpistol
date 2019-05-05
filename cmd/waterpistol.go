@@ -46,22 +46,36 @@ func (waterpistol *waterpistol) remove_project(index int) {
 	waterpistol.projects = waterpistol.projects[:len(waterpistol.projects)-1]
 }
 
-func checkError(err error) {
+func (waterpistol *waterpistol) checkError(err error, destroy bool) {
 	if err != nil {
-		panic(err)
+		fmt.Println("Error has occurred during compilation of project")
+		fmt.Println(err)
+		fmt.Println()
+
+		if destroy {
+			waterpistol.destroy_current_project()
+		}
+		panic(err) // Panic shouldn't stop the program, should be caught by the user
 	}
 }
 
 // If a command fails, just exist
-func checkCommand(cmd string, args ...string) string {
+func (waterpistol *waterpistol) checkCommand(destroy bool, cmd string, args ...string) string {
 	out, err := exec.Command(cmd, args...).Output()
 
 	if err != nil {
+		fmt.Println("Error has occurred during compilation of project")
 		fmt.Println("Command failed:", cmd, args)
 		if out, ok := err.(*exec.ExitError); ok {
 			fmt.Println(string(out.Stderr))
 		}
-		panic(err)
+
+		fmt.Println()
+
+		if destroy {
+			waterpistol.destroy_current_project()
+		}
+		panic(err) // Panic shouldn't stop the program, should be caught by the user
 	}
 	return string(out)
 }
@@ -337,7 +351,7 @@ func (waterpistol *waterpistol) handle(line string) {
 			return
 		}
 
-		current_project.compile_c2_implant()
+		waterpistol.compile_c2_implant()
 		current_project.saveProject()
 	case "login":
 		current_project := waterpistol.current_project()
@@ -383,23 +397,7 @@ func (waterpistol *waterpistol) handle(line string) {
 		}
 		current_project.Print()
 	case "destroy":
-		current_project := waterpistol.current_project()
-		if current_project == nil {
-			log.Print("No project selected\n")
-			return
-		}
-
-		log.Println("Destroying project")
-		if current_project.Ip != "" {
-			log.Println("Destroying c2 && ec2 instance")
-			checkCommand("cmd/c2_down", HOME_DIR+current_project.Name)
-		}
-
-		os.RemoveAll(HOME_DIR + current_project.Name)
-
-		waterpistol.remove_project(waterpistol.current)
-		waterpistol.current = -1
-		waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol% " + RESET)
+		waterpistol.destroy_current_project()
 	case "help":
 		help(false)
 	case "projects":

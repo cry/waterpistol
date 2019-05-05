@@ -66,5 +66,6 @@ func C2_sleep(time int64) *CheckCmdReply {
 }
 
 func C2_persistence(status bool) *CheckCmdReply {
-	return C2_wrap(&CheckCmdReply_Persistence{Enable: status})
+	persistence := &Persistence{Enable: status}
+	return C2_wrap(&CheckCmdReply_Persistence{Persistence: persistence})
 }

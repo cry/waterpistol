@@ -125,6 +125,27 @@ func (project *project) disableModule(module string) {
 
 }
 
+func (waterpistol *waterpistol) destroy_current_project() {
+	current_project := waterpistol.current_project()
+	if current_project == nil {
+		log.Print("No project selected\n")
+		return
+	}
+
+	log.Println("Destroying project")
+	if current_project.Ip != "" {
+		log.Println("Destroying c2 && ec2 instance")
+		waterpistol.checkCommand(false, "cmd/c2_down", HOME_DIR+current_project.Name)
+	}
+
+	os.RemoveAll(HOME_DIR + current_project.Name)
+
+	waterpistol.remove_project(waterpistol.current)
+	waterpistol.current = -1
+	waterpistol.term.SetPrompt(LIGHTBLUE + "waterpistol% " + RESET)
+
+}
+
 // Saves project specs to disk
 func (project *project) saveProject() {
 	data, err := json.MarshalIndent(project, "", " ")
@@ -167,7 +188,9 @@ func load_projects() []project {
 	files, err := ioutil.ReadDir(HOME_DIR)
 	log.Println("Loading previous projects")
 
-	checkError(err)
+	if err != nil {
+		panic(err)
+	}
 
 	ret := []project{}
 

